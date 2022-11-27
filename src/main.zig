@@ -1,5 +1,6 @@
 const std = @import("std");
 const debug = std.debug;
+const math = std.math;
 const ArrayList = std.ArrayList;
 
 const Vec3 = struct {
@@ -173,12 +174,51 @@ const HittableList = struct {
     }
 };
 
-const inf = std.math.inf(f64);
-const pi = std.math.pi(f64);
+const inf = math.inf(f64);
+const pi = math.pi(f64);
 
 fn deg2rad(degree: f64) f64 {
     return degree * pi / 180.0;
 }
+
+// [0, 1)
+fn randomReal01(random: std.rand.Random) f64 {
+    return random.float(f64);
+}
+
+// [min, max)
+fn randomReal(random: std.rand.Random, min: f64, max: f64) f64 {
+    return min + randomReal01(random) * (max - min);
+}
+
+const Camera = struct {
+    origin: Point3,
+    horizontal: Vec3,
+    vertical: Vec3,
+    lower_left_corner: Point3,
+
+    fn init(viewport_width: f64, viewport_height: f64, focal_length: f64) Camera {
+        const origin = Point3{ .x = 0.0, .y = 0.0, .z = 0.0 };
+        const horizontal = Vec3{ .x = viewport_width, .y = 0.0, .z = 0.0 };
+        const vertical = Vec3{ .x = 0.0, .y = viewport_height, .z = 0.0 };
+        const lower_left_corner = origin.sub(horizontal.div(2.0)).sub(vertical.div(2.0)).sub(Vec3{ .x = 0.0, .y = 0.0, .z = focal_length });
+
+        return Camera{
+            .origin = origin,
+            .horizontal = horizontal,
+            .vertical = vertical,
+            .lower_left_corner = lower_left_corner,
+        };
+    }
+
+    fn getRay(camera: Camera, u: f64, v: f64) Ray {
+        const dir = camera.lower_left_corner.add(camera.horizontal.mul(u)).add(camera.vertical.mul(v)).sub(camera.origin);
+        return Ray{
+            .origin = camera.origin,
+            .dir = dir,
+        };
+    }
+};
 
 fn rayColor(r: Ray, world: Hittable) Color {
     var rec: HitRecord = undefined;
@@ -190,11 +230,12 @@ fn rayColor(r: Ray, world: Hittable) Color {
     return (Color{ .x = 1.0, .y = 1.0, .z = 1.0 }).mul(1.0 - s).add((Color{ .x = 0.5, .y = 0.7, .z = 1.0 }).mul(s));
 }
 
-fn writeColor(out: anytype, c: Color) !void {
+fn writeColor(out: anytype, c: Color, samples_per_pixel: u32) !void {
+    const scale = 1.0 / @intToFloat(f64, samples_per_pixel);
     try out.print("{} {} {}\n", .{
-        @floatToInt(u8, 255.999 * c.x),
-        @floatToInt(u8, 255.999 * c.y),
-        @floatToInt(u8, 255.999 * c.z),
+        @floatToInt(u8, 256.0 * math.clamp(c.x * scale, 0.0, 0.999)),
+        @floatToInt(u8, 256.0 * math.clamp(c.y * scale, 0.0, 0.999)),
+        @floatToInt(u8, 256.0 * math.clamp(c.z * scale, 0.0, 0.999)),
     });
 }
 
@@ -203,11 +244,14 @@ pub fn main() !void {
     const allocator = gpa.allocator();
     defer debug.assert(!gpa.deinit());
 
-    // Image
+    var rng = std.rand.DefaultPrng.init(42);
+    var random = rng.random();
 
+    // Image
     const aspect_ratio = 16.0 / 9.0;
     const image_width = 400;
     const image_height = @floatToInt(comptime_int, @divTrunc(image_width, aspect_ratio));
+    const samples_per_pixel = 100;
 
     // World
     const sphere1 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = 0.0, .y = 0.0, .z = -1.0 }, .radius = 0.5 } };
@@ -222,11 +266,7 @@ pub fn main() !void {
     const viewport_height = 2.0;
     const viewport_width = aspect_ratio * viewport_height;
     const focal_length = 1.0;
-
-    const origin = Point3{ .x = 0.0, .y = 0.0, .z = 0.0 };
-    const horizontal = Vec3{ .x = viewport_width, .y = 0.0, .z = 0.0 };
-    const vertial = Vec3{ .x = 0.0, .y = viewport_height, .z = 0.0 };
-    const lower_left_corner = origin.sub(horizontal.div(2.0)).sub(vertial.div(2.0)).sub(Vec3{ .x = 0.0, .y = 0.0, .z = focal_length });
+    const camera = Camera.init(viewport_width, viewport_height, focal_length);
 
     // Render
     const stdout_file = std.io.getStdOut().writer();
@@ -240,12 +280,15 @@ pub fn main() !void {
         std.debug.print("\rScanlines remaining: {}", .{j});
         var i: i32 = 0;
         while (i < image_width) : (i += 1) {
-            const u = @intToFloat(f64, i) / (image_width - 1);
-            const v = @intToFloat(f64, j) / (image_height - 1);
-            const dir = lower_left_corner.add(horizontal.mul(u)).add(vertial.mul(v)).sub(origin);
-            const r = Ray{ .origin = origin, .dir = dir };
-            const pixelColor = rayColor(r, world);
-            try writeColor(stdout, pixelColor);
+            var s: u32 = 0;
+            var pixelColor = Color{ .x = 0.0, .y = 0.0, .z = 0.0 };
+            while (s < samples_per_pixel) : (s += 1) {
+                const u = (@intToFloat(f64, i) + randomReal01(random)) / (image_width - 1);
+                const v = (@intToFloat(f64, j) + randomReal01(random)) / (image_height - 1);
+                const r = camera.getRay(u, v);
+                pixelColor = pixelColor.add(rayColor(r, world));
+            }
+            try writeColor(stdout, pixelColor, samples_per_pixel);
         }
     }
 
