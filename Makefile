@@ -1,6 +1,7 @@
 .PHONY: all
 all:
-	@zig build run
+	@rm -f out.ppm
+	@zig build run > out.ppm
 
 .PHONY: fmt
 fmt:
