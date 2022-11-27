@@ -84,22 +84,34 @@ const Ray = struct {
     }
 };
 
-fn hitSphere(center: Point3, radius: f64, r: Ray) bool {
+fn hitSphere(center: Point3, radius: f64, r: Ray) f64 {
     const oc = r.origin.sub(center);
     const a = Vec3.dot(r.dir, r.dir);
     const b = 2.0 * Vec3.dot(oc, r.dir);
     const c = Vec3.dot(oc, oc) - radius * radius;
     const discriminant = b * b - 4.0 * a * c;
-    return discriminant > 0.0;
+    if (discriminant < 0.0) {
+        // r does not intersect the sphere.
+        return -1.0;
+    } else {
+        // root of the equation.
+        return (-b - @sqrt(discriminant)) / (2.0 * a);
+    }
 }
 
 fn rayColor(r: Ray) Color {
-    if (hitSphere(Point3{ .x = 0.0, .y = 0.0, .z = -1.0 }, 0.5, r)) {
-        return Color{ .x = 1.0, .y = 0.0, .z = 0.0 };
+    const sphereOrigin = Point3{ .x = 0.0, .y = 0.0, .z = -1.0 };
+    const sphereRadius = 0.5;
+
+    const t = hitSphere(sphereOrigin, sphereRadius, r);
+    if (t > 0.0) {
+        // r hints the sphere.
+        const sphereNormal = r.at(t).sub(sphereOrigin).normalized();
+        return (Color{ .x = sphereNormal.x + 1.0, .y = sphereNormal.y + 1.0, .z = sphereNormal.z + 1.0 }).mul(0.5);
     }
     const unit_dir = r.dir.normalized();
-    const t = 0.5 * (unit_dir.y + 1.0);
-    return (Color{ .x = 1.0, .y = 1.0, .z = 1.0 }).mul(1.0 - t).add((Color{ .x = 0.5, .y = 0.7, .z = 1.0 }).mul(t));
+    const s = 0.5 * (unit_dir.y + 1.0);
+    return (Color{ .x = 1.0, .y = 1.0, .z = 1.0 }).mul(1.0 - s).add((Color{ .x = 0.5, .y = 0.7, .z = 1.0 }).mul(s));
 }
 
 fn writeColor(out: anytype, c: Color) !void {
