@@ -112,6 +112,14 @@ fn randomPointInUnitSphere(rand: std.rand.Random) Vec3 {
     }
 }
 
+fn randomPointInUnitDisk(rand: std.rand.Random) Vec3 {
+    while (true) {
+        const p = Vec3{ .x = randomReal(rand, -1.0, 1.0), .y = randomReal(rand, -1.0, 1.0), .z = 0.0 };
+        if (p.norm() >= 1) continue;
+        return p;
+    }
+}
+
 fn randomUnitVector(rand: std.rand.Random) Vec3 {
     return randomPointInUnitSphere(rand).normalized();
 }
@@ -331,8 +339,12 @@ const Camera = struct {
     horizontal: Vec3,
     vertical: Vec3,
     lower_left_corner: Point3,
+    u: Vec3,
+    v: Vec3,
+    w: Vec3,
+    lens_radius: f64,
 
-    fn init(lookFrom: Point3, lookAt: Point3, vup: Vec3, vfov: f64, aspect_ratio: f64) Camera {
+    fn init(lookFrom: Point3, lookAt: Point3, vup: Vec3, vfov: f64, aspect_ratio: f64, aperture: f64, focus_dist: f64) Camera {
         const theta = deg2rad(vfov);
         const h = @tan(theta / 2);
         const viewport_height = 2.0 * h;
@@ -343,22 +355,28 @@ const Camera = struct {
         const v = w.cross(u);
 
         const origin = lookFrom;
-        const horizontal = u.mul(viewport_width);
-        const vertical = v.mul(viewport_height);
-        const lower_left_corner = origin.sub(horizontal.div(2.0)).sub(vertical.div(2.0)).sub(w);
+        const horizontal = u.mul(viewport_width * focus_dist);
+        const vertical = v.mul(viewport_height * focus_dist);
+        const lower_left_corner = origin.sub(horizontal.div(2.0)).sub(vertical.div(2.0)).sub(w.mul(focus_dist));
 
         return Camera{
             .origin = origin,
             .horizontal = horizontal,
             .vertical = vertical,
             .lower_left_corner = lower_left_corner,
+            .u = u,
+            .v = v,
+            .w = w,
+            .lens_radius = aperture / 2.0,
         };
     }
 
-    fn getRay(camera: Camera, s: f64, t: f64) Ray {
-        const dir = camera.lower_left_corner.add(camera.horizontal.mul(s)).add(camera.vertical.mul(t)).sub(camera.origin);
+    fn getRay(camera: Camera, rand: std.rand.Random, s: f64, t: f64) Ray {
+        const rd = randomPointInUnitDisk(rand).mul(camera.lens_radius);
+        const offset = camera.u.mul(rd.x).add(camera.v.mul(rd.y));
+        const dir = camera.lower_left_corner.add(camera.horizontal.mul(s)).add(camera.vertical.mul(t)).sub(camera.origin).sub(offset);
         return Ray{
-            .origin = camera.origin,
+            .origin = camera.origin.add(offset),
             .dir = dir,
         };
     }
@@ -427,7 +445,17 @@ pub fn main() !void {
     defer hittable_objects.deinit();
 
     // Camera
-    const camera = Camera.init(Point3{ .x = -2.0, .y = 2.0, .z = 1.0 }, Point3{ .x = 0.0, .y = 0.0, .z = -1.0 }, Vec3{ .x = 0.0, .y = 1.0, .z = 0.0 }, 20.0, aspect_ratio);
+    const lookFrom = Point3{ .x = 3.0, .y = 3.0, .z = 2.0 };
+    const lookAt = Point3{ .x = 0.0, .y = 0.0, .z = -1.0 };
+    const camera = Camera.init(
+        lookFrom,
+        lookAt,
+        Vec3{ .x = 0.0, .y = 1.0, .z = 0.0 },
+        20.0,
+        aspect_ratio,
+        2.0,
+        lookFrom.sub(lookAt).norm(),
+    );
 
     // Render
     const stdout_file = std.io.getStdOut().writer();
@@ -446,7 +474,7 @@ pub fn main() !void {
             while (s < samples_per_pixel) : (s += 1) {
                 const u = (@intToFloat(f64, i) + randomReal01(rand)) / (image_width - 1);
                 const v = (@intToFloat(f64, j) + randomReal01(rand)) / (image_height - 1);
-                const r = camera.getRay(u, v);
+                const r = camera.getRay(rand, u, v);
                 pixelColor = pixelColor.add(rayColor(r, world, rand, max_depth));
             }
             try writeColor(stdout, pixelColor, samples_per_pixel);
