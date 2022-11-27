@@ -166,11 +166,12 @@ const DiffuseMaterial = struct {
 
 const MetalMaterial = struct {
     albedo: Color,
+    fuzz: f64,
 
     fn scatter(mat: MetalMaterial, r_in: Ray, record: HitRecord, attenuation: *Color, scattered: *Ray, rand: std.rand.Random) bool {
-        _ = rand;
+        debug.assert(mat.fuzz <= 1.0);
         const reflected = reflect(r_in.dir.normalized(), record.normal);
-        scattered.* = Ray{ .origin = record.p, .dir = reflected };
+        scattered.* = Ray{ .origin = record.p, .dir = reflected.add(randomPointInUnitSphere(rand).mul(mat.fuzz)) };
         attenuation.* = mat.albedo;
         return reflected.dot(record.normal) > 0.0;
     }
@@ -361,8 +362,8 @@ pub fn main() !void {
     // World
     const material_ground = Material{ .diffuse = DiffuseMaterial{ .albedo = Color{ .x = 0.8, .y = 0.8, .z = 0.0 } } };
     const material_center = Material{ .diffuse = DiffuseMaterial{ .albedo = Color{ .x = 0.7, .y = 0.3, .z = 0.3 } } };
-    const material_left = Material{ .metal = MetalMaterial{ .albedo = Color{ .x = 0.8, .y = 0.8, .z = 0.8 } } };
-    const material_right = Material{ .metal = MetalMaterial{ .albedo = Color{ .x = 0.8, .y = 0.6, .z = 0.2 } } };
+    const material_left = Material{ .metal = MetalMaterial{ .albedo = Color{ .x = 0.8, .y = 0.8, .z = 0.8 }, .fuzz = 0.3 } };
+    const material_right = Material{ .metal = MetalMaterial{ .albedo = Color{ .x = 0.8, .y = 0.6, .z = 0.2 }, .fuzz = 1.0 } };
     const sphere1 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = 0.0, .y = -100.5, .z = -1.0 }, .radius = 100.0, .material = &material_ground } };
     const sphere2 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = 0.0, .y = 0.0, .z = -1.0 }, .radius = 0.5, .material = &material_center } };
     const sphere3 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = -1.0, .y = 0.0, .z = -1.0 }, .radius = 0.5, .material = &material_left } };
