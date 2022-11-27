@@ -51,18 +51,16 @@ pub fn main() !void {
     try stdout.print("P3\n{} {}\n255\n", .{ image_width, image_height });
 
     var j: i32 = image_height - 1;
-    while (j >= 0) {
+    while (j >= 0) : (j -= 1) {
         std.debug.print("\rScanlines remaining: {}", .{j});
         var i: i32 = 0;
-        while (i < image_width) {
+        while (i < image_width) : (i += 1) {
             try writeColor(stdout, Color{
                 @intToFloat(f64, i) / (image_width - 1),
                 @intToFloat(f64, j) / (image_height - 1),
                 0.25,
             });
-            i += 1;
         }
-        j -= 1;
     }
 
     try bw.flush();
