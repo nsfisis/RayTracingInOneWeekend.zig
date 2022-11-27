@@ -195,8 +195,14 @@ const DielectricMaterial = struct {
         _ = rand;
         const refraction_ratio = if (record.front_face) 1.0 / mat.ir else mat.ir;
         const unit_dir = r_in.dir.normalized();
-        const refracted = refract(unit_dir, record.normal, refraction_ratio);
-        scattered.* = Ray{ .origin = record.p, .dir = refracted };
+
+        const cos_theta = @min(unit_dir.mul(-1.0).dot(record.normal), 1.0);
+        const sin_theta = @sqrt(1.0 - cos_theta * cos_theta);
+        // sin(theta') = refraction_ratio * sin(theta) <= 1
+        const can_refract = refraction_ratio * sin_theta <= 1.0;
+
+        const dir = if (can_refract) refract(unit_dir, record.normal, refraction_ratio) else reflect(unit_dir, record.normal);
+        scattered.* = Ray{ .origin = record.p, .dir = dir };
         attenuation.* = Color{ .x = 1.0, .y = 1.0, .z = 1.0 };
         return true;
     }
@@ -386,9 +392,9 @@ pub fn main() !void {
 
     // World
     const material_ground = Material{ .diffuse = DiffuseMaterial{ .albedo = Color{ .x = 0.8, .y = 0.8, .z = 0.0 } } };
-    const material_center = Material{ .dielectric = DielectricMaterial{ .ir = 1.5 } };
-    const material_left = Material{ .dielectric = DielectricMaterial{ .ir = 1.1 } };
-    const material_right = Material{ .metal = MetalMaterial{ .albedo = Color{ .x = 0.8, .y = 0.6, .z = 0.2 }, .fuzz = 1.0 } };
+    const material_center = Material{ .diffuse = DiffuseMaterial{ .albedo = Color{ .x = 0.1, .y = 0.2, .z = 0.5 } } };
+    const material_left = Material{ .dielectric = DielectricMaterial{ .ir = 1.5 } };
+    const material_right = Material{ .metal = MetalMaterial{ .albedo = Color{ .x = 0.8, .y = 0.6, .z = 0.2 }, .fuzz = 0.0 } };
     const sphere1 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = 0.0, .y = -100.5, .z = -1.0 }, .radius = 100.0, .material = &material_ground } };
     const sphere2 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = 0.0, .y = 0.0, .z = -1.0 }, .radius = 0.5, .material = &material_center } };
     const sphere3 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = -1.0, .y = 0.0, .z = -1.0 }, .radius = 0.5, .material = &material_left } };
