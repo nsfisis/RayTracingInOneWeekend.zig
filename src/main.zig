@@ -306,7 +306,7 @@ const HittableList = struct {
 };
 
 const inf = math.inf(f64);
-const pi = math.pi(f64);
+const pi = math.pi;
 
 fn deg2rad(degree: f64) f64 {
     return degree * pi / 180.0;
@@ -328,7 +328,13 @@ const Camera = struct {
     vertical: Vec3,
     lower_left_corner: Point3,
 
-    fn init(viewport_width: f64, viewport_height: f64, focal_length: f64) Camera {
+    fn init(vfov: f64, aspect_ratio: f64) Camera {
+        const theta = deg2rad(vfov);
+        const h = @tan(theta / 2);
+        const viewport_height = 2.0 * h;
+        const viewport_width = aspect_ratio * viewport_height;
+        const focal_length = 1.0;
+
         const origin = Point3{ .x = 0.0, .y = 0.0, .z = 0.0 };
         const horizontal = Vec3{ .x = viewport_width, .y = 0.0, .z = 0.0 };
         const vertical = Vec3{ .x = 0.0, .y = viewport_height, .z = 0.0 };
@@ -396,27 +402,35 @@ pub fn main() !void {
     const max_depth = 50;
 
     // World
-    const material_ground = Material{ .diffuse = DiffuseMaterial{ .albedo = Color{ .x = 0.8, .y = 0.8, .z = 0.0 } } };
-    const material_center = Material{ .diffuse = DiffuseMaterial{ .albedo = Color{ .x = 0.1, .y = 0.2, .z = 0.5 } } };
-    const material_left = Material{ .dielectric = DielectricMaterial{ .ir = 1.5 } };
-    const material_right = Material{ .metal = MetalMaterial{ .albedo = Color{ .x = 0.8, .y = 0.6, .z = 0.2 }, .fuzz = 0.0 } };
-    const sphere1 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = 0.0, .y = -100.5, .z = -1.0 }, .radius = 100.0, .material = &material_ground } };
-    const sphere2 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = 0.0, .y = 0.0, .z = -1.0 }, .radius = 0.5, .material = &material_center } };
-    const sphere3 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = -1.0, .y = 0.0, .z = -1.0 }, .radius = 0.5, .material = &material_left } };
-    const sphere4 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = 1.0, .y = 0.0, .z = -1.0 }, .radius = 0.5, .material = &material_right } };
+    // const material_ground = Material{ .diffuse = DiffuseMaterial{ .albedo = Color{ .x = 0.8, .y = 0.8, .z = 0.0 } } };
+    // const material_center = Material{ .diffuse = DiffuseMaterial{ .albedo = Color{ .x = 0.1, .y = 0.2, .z = 0.5 } } };
+    // const material_left = Material{ .dielectric = DielectricMaterial{ .ir = 1.5 } };
+    // const material_right = Material{ .metal = MetalMaterial{ .albedo = Color{ .x = 0.8, .y = 0.6, .z = 0.2 }, .fuzz = 0.0 } };
+    // const sphere1 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = 0.0, .y = -100.5, .z = -1.0 }, .radius = 100.0, .material = &material_ground } };
+    // const sphere2 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = 0.0, .y = 0.0, .z = -1.0 }, .radius = 0.5, .material = &material_center } };
+    // const sphere3 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = -1.0, .y = 0.0, .z = -1.0 }, .radius = 0.5, .material = &material_left } };
+    // const sphere4 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = 1.0, .y = 0.0, .z = -1.0 }, .radius = 0.5, .material = &material_right } };
+    // var hittable_objects = ArrayList(*const Hittable).init(allocator);
+    // try hittable_objects.append(&sphere1);
+    // try hittable_objects.append(&sphere2);
+    // try hittable_objects.append(&sphere3);
+    // try hittable_objects.append(&sphere4);
+    // const world = Hittable{ .list = HittableList{ .objects = hittable_objects } };
+    // defer hittable_objects.deinit();
+
+    const R = @cos(pi / 4.0);
+    const material_left = Material{ .diffuse = DiffuseMaterial{ .albedo = Color{ .x = 0.0, .y = 0.0, .z = 1.0 } } };
+    const material_right = Material{ .diffuse = DiffuseMaterial{ .albedo = Color{ .x = 1.0, .y = 0.0, .z = 0.0 } } };
+    const sphere1 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = -R, .y = 0.0, .z = -1.0 }, .radius = R, .material = &material_left } };
+    const sphere2 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = R, .y = 0.0, .z = -1.0 }, .radius = R, .material = &material_right } };
     var hittable_objects = ArrayList(*const Hittable).init(allocator);
     try hittable_objects.append(&sphere1);
     try hittable_objects.append(&sphere2);
-    try hittable_objects.append(&sphere3);
-    try hittable_objects.append(&sphere4);
     const world = Hittable{ .list = HittableList{ .objects = hittable_objects } };
     defer hittable_objects.deinit();
 
     // Camera
-    const viewport_height = 2.0;
-    const viewport_width = aspect_ratio * viewport_height;
-    const focal_length = 1.0;
-    const camera = Camera.init(viewport_width, viewport_height, focal_length);
+    const camera = Camera.init(90.0, aspect_ratio);
 
     // Render
     const stdout_file = std.io.getStdOut().writer();
