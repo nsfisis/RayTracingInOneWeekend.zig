@@ -1,38 +1,51 @@
 const std = @import("std");
 
-const Vec3f = @Vector(3, f64);
-const Point3 = Vec3f;
-const Color = Vec3f;
+const Vec3 = struct {
+    x: f64,
+    y: f64,
+    z: f64,
 
-fn vecNorm(v: Vec3f) f64 {
-    return @sqrt(vecNormSquared(v));
-}
+    pub fn norm(v: Vec3) f64 {
+        return @sqrt(v.normSquared());
+    }
 
-fn vecNormSquared(v: Vec3f) f64 {
-    return v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
-}
+    pub fn normSquared(v: Vec3) f64 {
+        return v.x * v.x + v.y * v.y + v.z * v.z;
+    }
 
-fn vecDot(u: Vec3f, v: Vec3f) f64 {
-    return u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
-}
+    pub fn dot(u: Vec3, v: Vec3) f64 {
+        return u.x * v.x + u.y * v.y + u.z * v.z;
+    }
 
-fn vecCross(u: Vec3f, v: Vec3f) Vec3f {
-    return Vec3f(
-        u[1] * v[2] - u[2] * v[1],
-        u[2] * v[0] - u[0] * v[2],
-        u[0] * v[1] - u[1] * v[0],
-    );
-}
+    pub fn cross(u: Vec3, v: Vec3) Vec3 {
+        return Vec3{
+            .x = u.y * v.z - u.z * v.y,
+            .y = u.z * v.x - u.x * v.z,
+            .z = u.x * v.y - u.y * v.x,
+        };
+    }
 
-fn vecNormalized(v: Vec3f) Vec3f {
-    return v / vecNorm(v);
-}
+    pub fn normalized(v: Vec3) Vec3 {
+        return v.div(v.norm());
+    }
+
+    pub fn div(v: Vec3, t: f64) Vec3 {
+        return Vec3{
+            .x = v.x / t,
+            .y = v.y / t,
+            .z = v.z / t,
+        };
+    }
+};
+
+const Point3 = Vec3;
+const Color = Vec3;
 
 fn writeColor(out: anytype, c: Color) !void {
     try out.print("{} {} {}\n", .{
-        @floatToInt(u8, 255.999 * c[0]),
-        @floatToInt(u8, 255.999 * c[1]),
-        @floatToInt(u8, 255.999 * c[2]),
+        @floatToInt(u8, 255.999 * c.x),
+        @floatToInt(u8, 255.999 * c.y),
+        @floatToInt(u8, 255.999 * c.z),
     });
 }
 
@@ -56,9 +69,9 @@ pub fn main() !void {
         var i: i32 = 0;
         while (i < image_width) : (i += 1) {
             try writeColor(stdout, Color{
-                @intToFloat(f64, i) / (image_width - 1),
-                @intToFloat(f64, j) / (image_height - 1),
-                0.25,
+                .x = @intToFloat(f64, i) / (image_width - 1),
+                .y = @intToFloat(f64, j) / (image_height - 1),
+                .z = 0.25,
             });
         }
     }
