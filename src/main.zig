@@ -28,6 +28,14 @@ fn vecNormalized(v: Vec3f) Vec3f {
     return v / vecNorm(v);
 }
 
+fn writeColor(out: anytype, c: Color) !void {
+    try out.print("{} {} {}\n", .{
+        @floatToInt(u8, 255.999 * c[0]),
+        @floatToInt(u8, 255.999 * c[1]),
+        @floatToInt(u8, 255.999 * c[2]),
+    });
+}
+
 pub fn main() !void {
     // Image
 
@@ -47,15 +55,11 @@ pub fn main() !void {
         std.debug.print("\rScanlines remaining: {}", .{j});
         var i: i32 = 0;
         while (i < image_width) {
-            const r = @intToFloat(f64, i) / (image_width - 1);
-            const g = @intToFloat(f64, j) / (image_height - 1);
-            const b = 0.25;
-
-            const ir = @floatToInt(u8, 255.999 * r);
-            const ig = @floatToInt(u8, 255.999 * g);
-            const ib = @floatToInt(u8, 255.999 * b);
-
-            try stdout.print("{} {} {}\n", .{ ir, ig, ib });
+            try writeColor(stdout, Color{
+                @intToFloat(f64, i) / (image_width - 1),
+                @intToFloat(f64, j) / (image_height - 1),
+                0.25,
+            });
             i += 1;
         }
         j -= 1;
