@@ -130,6 +130,10 @@ fn refract(uv: Vec3, n: Vec3, etai_over_etat: f64) Vec3 {
 const Point3 = Vec3;
 const Color = Vec3;
 
+fn rgb(r: f64, g: f64, b: f64) Color {
+    return Color{ .x = r, .y = g, .z = b };
+}
+
 const Ray = struct {
     origin: Vec3,
     dir: Vec3,
@@ -202,7 +206,7 @@ const DielectricMaterial = struct {
 
         const dir = if (can_refract and reflectance(cos_theta, refraction_ratio) < randomReal01(rand)) refract(unit_dir, record.normal, refraction_ratio) else reflect(unit_dir, record.normal);
         scattered.* = Ray{ .origin = record.p, .dir = dir };
-        attenuation.* = Color{ .x = 1.0, .y = 1.0, .z = 1.0 };
+        attenuation.* = rgb(1.0, 1.0, 1.0);
         return true;
     }
 
@@ -364,7 +368,7 @@ fn rayColor(r: Ray, world: Hittable, rand: std.rand.Random, depth: u32) Color {
     var rec: HitRecord = undefined;
     if (depth == 0) {
         // If we've exceeded the ray bounce limit, no more ligth is gathered.
-        return Color{ .x = 0.0, .y = 0.0, .z = 0.0 };
+        return rgb(0.0, 0.0, 0.0);
     }
     if (world.hit(r, 0.001, inf, &rec)) {
         var scattered: Ray = undefined;
@@ -372,12 +376,12 @@ fn rayColor(r: Ray, world: Hittable, rand: std.rand.Random, depth: u32) Color {
         if (rec.material.scatter(r, rec, &attenuation, &scattered, rand)) {
             return attenuation.mulV(rayColor(scattered, world, rand, depth - 1));
         } else {
-            return Color{ .x = 0.0, .y = 0.0, .z = 0.0 };
+            return rgb(0.0, 0.0, 0.0);
         }
     }
     const unit_dir = r.dir.normalized();
     const s = 0.5 * (unit_dir.y + 1.0);
-    return (Color{ .x = 1.0, .y = 1.0, .z = 1.0 }).mul(1.0 - s).add((Color{ .x = 0.5, .y = 0.7, .z = 1.0 }).mul(s));
+    return rgb(1.0, 1.0, 1.0).mul(1.0 - s).add(rgb(0.5, 0.7, 1.0).mul(s));
 }
 
 fn writeColor(out: anytype, c: Color, samples_per_pixel: u32) !void {
@@ -404,10 +408,10 @@ pub fn main() !void {
     const samples_per_pixel = 100;
     const max_depth = 50;
 
-    const material_ground = Material{ .diffuse = DiffuseMaterial{ .albedo = Color{ .x = 0.8, .y = 0.8, .z = 0.0 } } };
-    const material_center = Material{ .diffuse = DiffuseMaterial{ .albedo = Color{ .x = 0.1, .y = 0.2, .z = 0.5 } } };
+    const material_ground = Material{ .diffuse = DiffuseMaterial{ .albedo = rgb(0.8, 0.8, 0.0) } };
+    const material_center = Material{ .diffuse = DiffuseMaterial{ .albedo = rgb(0.1, 0.2, 0.5) } };
     const material_left = Material{ .dielectric = DielectricMaterial{ .ir = 1.5 } };
-    const material_right = Material{ .metal = MetalMaterial{ .albedo = Color{ .x = 0.8, .y = 0.6, .z = 0.2 }, .fuzz = 0.0 } };
+    const material_right = Material{ .metal = MetalMaterial{ .albedo = rgb(0.8, 0.6, 0.2), .fuzz = 0.0 } };
     const sphere1 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = 0.0, .y = -100.5, .z = -1.0 }, .radius = 100.0, .material = &material_ground } };
     const sphere2 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = 0.0, .y = 0.0, .z = -1.0 }, .radius = 0.5, .material = &material_center } };
     const sphere3 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = -1.0, .y = 0.0, .z = -1.0 }, .radius = 0.5, .material = &material_left } };
@@ -438,7 +442,7 @@ pub fn main() !void {
         var i: i32 = 0;
         while (i < image_width) : (i += 1) {
             var s: u32 = 0;
-            var pixelColor = Color{ .x = 0.0, .y = 0.0, .z = 0.0 };
+            var pixelColor = rgb(0.0, 0.0, 0.0);
             while (s < samples_per_pixel) : (s += 1) {
                 const u = (@intToFloat(f64, i) + randomReal01(rand)) / (image_width - 1);
                 const v = (@intToFloat(f64, j) + randomReal01(rand)) / (image_height - 1);
