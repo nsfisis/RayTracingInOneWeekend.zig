@@ -84,7 +84,19 @@ const Ray = struct {
     }
 };
 
+fn hitSphere(center: Point3, radius: f64, r: Ray) bool {
+    const oc = r.origin.sub(center);
+    const a = Vec3.dot(r.dir, r.dir);
+    const b = 2.0 * Vec3.dot(oc, r.dir);
+    const c = Vec3.dot(oc, oc) - radius * radius;
+    const discriminant = b * b - 4.0 * a * c;
+    return discriminant > 0.0;
+}
+
 fn rayColor(r: Ray) Color {
+    if (hitSphere(Point3{ .x = 0.0, .y = 0.0, .z = -1.0 }, 0.5, r)) {
+        return Color{ .x = 1.0, .y = 0.0, .z = 0.0 };
+    }
     const unit_dir = r.dir.normalized();
     const t = 0.5 * (unit_dir.y + 1.0);
     return (Color{ .x = 1.0, .y = 1.0, .z = 1.0 }).mul(1.0 - t).add((Color{ .x = 0.5, .y = 0.7, .z = 1.0 }).mul(t));
