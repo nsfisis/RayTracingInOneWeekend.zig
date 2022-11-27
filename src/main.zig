@@ -251,7 +251,7 @@ fn rayColor(r: Ray, world: Hittable, rand: std.rand.Random, depth: u32) Color {
         // If we've exceeded the ray bounce limit, no more ligth is gathered.
         return Color{ .x = 0.0, .y = 0.0, .z = 0.0 };
     }
-    if (world.hit(r, 0, inf, &rec)) {
+    if (world.hit(r, 0.001, inf, &rec)) {
         const target = rec.p.add(rec.normal).add(randomPointInUnitSphere(rand));
         return rayColor(Ray{ .origin = rec.p, .dir = target.sub(rec.p) }, world, rand, depth - 1).mul(0.5);
     }
@@ -263,9 +263,9 @@ fn rayColor(r: Ray, world: Hittable, rand: std.rand.Random, depth: u32) Color {
 fn writeColor(out: anytype, c: Color, samples_per_pixel: u32) !void {
     const scale = 1.0 / @intToFloat(f64, samples_per_pixel);
     try out.print("{} {} {}\n", .{
-        @floatToInt(u8, 256.0 * math.clamp(c.x * scale, 0.0, 0.999)),
-        @floatToInt(u8, 256.0 * math.clamp(c.y * scale, 0.0, 0.999)),
-        @floatToInt(u8, 256.0 * math.clamp(c.z * scale, 0.0, 0.999)),
+        @floatToInt(u8, 256.0 * math.clamp(@sqrt(c.x * scale), 0.0, 0.999)),
+        @floatToInt(u8, 256.0 * math.clamp(@sqrt(c.y * scale), 0.0, 0.999)),
+        @floatToInt(u8, 256.0 * math.clamp(@sqrt(c.z * scale), 0.0, 0.999)),
     });
 }
 
