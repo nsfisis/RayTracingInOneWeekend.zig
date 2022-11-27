@@ -86,16 +86,16 @@ const Ray = struct {
 
 fn hitSphere(center: Point3, radius: f64, r: Ray) f64 {
     const oc = r.origin.sub(center);
-    const a = Vec3.dot(r.dir, r.dir);
-    const b = 2.0 * Vec3.dot(oc, r.dir);
-    const c = Vec3.dot(oc, oc) - radius * radius;
-    const discriminant = b * b - 4.0 * a * c;
+    const a = r.dir.normSquared();
+    const half_b = Vec3.dot(oc, r.dir);
+    const c = oc.normSquared() - radius * radius;
+    const discriminant = half_b * half_b - a * c;
     if (discriminant < 0.0) {
         // r does not intersect the sphere.
         return -1.0;
     } else {
         // root of the equation.
-        return (-b - @sqrt(discriminant)) / (2.0 * a);
+        return (-half_b - @sqrt(discriminant)) / a;
     }
 }
 
