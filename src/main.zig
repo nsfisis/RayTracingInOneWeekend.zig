@@ -99,6 +99,10 @@ fn randomPointInUnitSphere(rand: std.rand.Random) Vec3 {
     }
 }
 
+fn randomUnitVector(rand: std.rand.Random) Vec3 {
+    return randomPointInUnitSphere(rand).normalized();
+}
+
 const Point3 = Vec3;
 const Color = Vec3;
 
@@ -252,7 +256,7 @@ fn rayColor(r: Ray, world: Hittable, rand: std.rand.Random, depth: u32) Color {
         return Color{ .x = 0.0, .y = 0.0, .z = 0.0 };
     }
     if (world.hit(r, 0.001, inf, &rec)) {
-        const target = rec.p.add(rec.normal).add(randomPointInUnitSphere(rand));
+        const target = rec.p.add(rec.normal).add(randomUnitVector(rand));
         return rayColor(Ray{ .origin = rec.p, .dir = target.sub(rec.p) }, world, rand, depth - 1).mul(0.5);
     }
     const unit_dir = r.dir.normalized();
