@@ -120,6 +120,13 @@ fn reflect(v: Vec3, n: Vec3) Vec3 {
     return v.sub(n.mul(2 * v.dot(n)));
 }
 
+fn refract(uv: Vec3, n: Vec3, etai_over_etat: f64) Vec3 {
+    const cos_theta = @min(uv.mul(-1.0).dot(n), 1.0);
+    const r_out_perpendicular = uv.add(n.mul(cos_theta)).mul(etai_over_etat);
+    const r_out_parallel = n.mul(-@sqrt(@fabs(1.0 - r_out_perpendicular.normSquared())));
+    return r_out_perpendicular.add(r_out_parallel);
+}
+
 const Point3 = Vec3;
 const Color = Vec3;
 
@@ -135,16 +142,19 @@ const Ray = struct {
 const MaterialTag = enum {
     diffuse,
     metal,
+    dielectric,
 };
 
 const Material = union(MaterialTag) {
     diffuse: DiffuseMaterial,
     metal: MetalMaterial,
+    dielectric: DielectricMaterial,
 
     fn scatter(mat: Material, r_in: Ray, record: HitRecord, attenuation: *Color, scattered: *Ray, rand: std.rand.Random) bool {
         return switch (mat) {
             MaterialTag.diffuse => |diffuse_mat| diffuse_mat.scatter(r_in, record, attenuation, scattered, rand),
             MaterialTag.metal => |metal_mat| metal_mat.scatter(r_in, record, attenuation, scattered, rand),
+            MaterialTag.dielectric => |dielectric_mat| dielectric_mat.scatter(r_in, record, attenuation, scattered, rand),
         };
     }
 };
@@ -174,6 +184,21 @@ const MetalMaterial = struct {
         scattered.* = Ray{ .origin = record.p, .dir = reflected.add(randomPointInUnitSphere(rand).mul(mat.fuzz)) };
         attenuation.* = mat.albedo;
         return reflected.dot(record.normal) > 0.0;
+    }
+};
+
+const DielectricMaterial = struct {
+    // index of refraction.
+    ir: f64,
+
+    fn scatter(mat: DielectricMaterial, r_in: Ray, record: HitRecord, attenuation: *Color, scattered: *Ray, rand: std.rand.Random) bool {
+        _ = rand;
+        const refraction_ratio = if (record.front_face) 1.0 / mat.ir else mat.ir;
+        const unit_dir = r_in.dir.normalized();
+        const refracted = refract(unit_dir, record.normal, refraction_ratio);
+        scattered.* = Ray{ .origin = record.p, .dir = refracted };
+        attenuation.* = Color{ .x = 1.0, .y = 1.0, .z = 1.0 };
+        return true;
     }
 };
 
@@ -361,8 +386,8 @@ pub fn main() !void {
 
     // World
     const material_ground = Material{ .diffuse = DiffuseMaterial{ .albedo = Color{ .x = 0.8, .y = 0.8, .z = 0.0 } } };
-    const material_center = Material{ .diffuse = DiffuseMaterial{ .albedo = Color{ .x = 0.7, .y = 0.3, .z = 0.3 } } };
-    const material_left = Material{ .metal = MetalMaterial{ .albedo = Color{ .x = 0.8, .y = 0.8, .z = 0.8 }, .fuzz = 0.3 } };
+    const material_center = Material{ .dielectric = DielectricMaterial{ .ir = 1.5 } };
+    const material_left = Material{ .dielectric = DielectricMaterial{ .ir = 1.1 } };
     const material_right = Material{ .metal = MetalMaterial{ .albedo = Color{ .x = 0.8, .y = 0.6, .z = 0.2 }, .fuzz = 1.0 } };
     const sphere1 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = 0.0, .y = -100.5, .z = -1.0 }, .radius = 100.0, .material = &material_ground } };
     const sphere2 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = 0.0, .y = 0.0, .z = -1.0 }, .radius = 0.5, .material = &material_center } };
