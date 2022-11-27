@@ -69,10 +69,35 @@ const Vec3 = struct {
         };
     }
 
+    pub fn random01(rand: std.rand.Random) Vec3 {
+        return Vec3{
+            .x = randomReal01(rand),
+            .y = randomReal01(rand),
+            .z = randomReal01(rand),
+        };
+    }
+
+    pub fn random(rand: std.rand.Random, min: f64, max: f64) Vec3 {
+        return Vec3{
+            .x = randomReal(rand, min, max),
+            .y = randomReal(rand, min, max),
+            .z = randomReal(rand, min, max),
+        };
+    }
+
+    // for debugging
     pub fn pp(v: Vec3) void {
         debug.print("{} {} {}\n", .{ v.x, v.y, v.z });
     }
 };
+
+fn randomPointInUnitSphere(rand: std.rand.Random) Vec3 {
+    while (true) {
+        const p = Vec3.random(rand, -1.0, 1.0);
+        if (p.norm() >= 1) continue;
+        return p;
+    }
+}
 
 const Point3 = Vec3;
 const Color = Vec3;
@@ -182,13 +207,13 @@ fn deg2rad(degree: f64) f64 {
 }
 
 // [0, 1)
-fn randomReal01(random: std.rand.Random) f64 {
-    return random.float(f64);
+fn randomReal01(rand: std.rand.Random) f64 {
+    return rand.float(f64);
 }
 
 // [min, max)
-fn randomReal(random: std.rand.Random, min: f64, max: f64) f64 {
-    return min + randomReal01(random) * (max - min);
+fn randomReal(rand: std.rand.Random, min: f64, max: f64) f64 {
+    return min + randomReal01(rand) * (max - min);
 }
 
 const Camera = struct {
@@ -220,10 +245,15 @@ const Camera = struct {
     }
 };
 
-fn rayColor(r: Ray, world: Hittable) Color {
+fn rayColor(r: Ray, world: Hittable, rand: std.rand.Random, depth: u32) Color {
     var rec: HitRecord = undefined;
+    if (depth == 0) {
+        // If we've exceeded the ray bounce limit, no more ligth is gathered.
+        return Color{ .x = 0.0, .y = 0.0, .z = 0.0 };
+    }
     if (world.hit(r, 0, inf, &rec)) {
-        return rec.normal.add(Color{ .x = 1.0, .y = 1.0, .z = 1.0 }).mul(0.5);
+        const target = rec.p.add(rec.normal).add(randomPointInUnitSphere(rand));
+        return rayColor(Ray{ .origin = rec.p, .dir = target.sub(rec.p) }, world, rand, depth - 1).mul(0.5);
     }
     const unit_dir = r.dir.normalized();
     const s = 0.5 * (unit_dir.y + 1.0);
@@ -245,13 +275,14 @@ pub fn main() !void {
     defer debug.assert(!gpa.deinit());
 
     var rng = std.rand.DefaultPrng.init(42);
-    var random = rng.random();
+    var rand = rng.random();
 
     // Image
     const aspect_ratio = 16.0 / 9.0;
     const image_width = 400;
     const image_height = @floatToInt(comptime_int, @divTrunc(image_width, aspect_ratio));
     const samples_per_pixel = 100;
+    const max_depth = 50;
 
     // World
     const sphere1 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = 0.0, .y = 0.0, .z = -1.0 }, .radius = 0.5 } };
@@ -277,16 +308,16 @@ pub fn main() !void {
 
     var j: i32 = image_height - 1;
     while (j >= 0) : (j -= 1) {
-        std.debug.print("\rScanlines remaining: {}", .{j});
+        std.debug.print("\rScanlines remaining: {}     ", .{j});
         var i: i32 = 0;
         while (i < image_width) : (i += 1) {
             var s: u32 = 0;
             var pixelColor = Color{ .x = 0.0, .y = 0.0, .z = 0.0 };
             while (s < samples_per_pixel) : (s += 1) {
-                const u = (@intToFloat(f64, i) + randomReal01(random)) / (image_width - 1);
-                const v = (@intToFloat(f64, j) + randomReal01(random)) / (image_height - 1);
+                const u = (@intToFloat(f64, i) + randomReal01(rand)) / (image_width - 1);
+                const v = (@intToFloat(f64, j) + randomReal01(rand)) / (image_height - 1);
                 const r = camera.getRay(u, v);
-                pixelColor = pixelColor.add(rayColor(r, world));
+                pixelColor = pixelColor.add(rayColor(r, world, rand, max_depth));
             }
             try writeColor(stdout, pixelColor, samples_per_pixel);
         }
