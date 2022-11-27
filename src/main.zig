@@ -192,7 +192,6 @@ const DielectricMaterial = struct {
     ir: f64,
 
     fn scatter(mat: DielectricMaterial, r_in: Ray, record: HitRecord, attenuation: *Color, scattered: *Ray, rand: std.rand.Random) bool {
-        _ = rand;
         const refraction_ratio = if (record.front_face) 1.0 / mat.ir else mat.ir;
         const unit_dir = r_in.dir.normalized();
 
@@ -201,10 +200,16 @@ const DielectricMaterial = struct {
         // sin(theta') = refraction_ratio * sin(theta) <= 1
         const can_refract = refraction_ratio * sin_theta <= 1.0;
 
-        const dir = if (can_refract) refract(unit_dir, record.normal, refraction_ratio) else reflect(unit_dir, record.normal);
+        const dir = if (can_refract and reflectance(cos_theta, refraction_ratio) < randomReal01(rand)) refract(unit_dir, record.normal, refraction_ratio) else reflect(unit_dir, record.normal);
         scattered.* = Ray{ .origin = record.p, .dir = dir };
         attenuation.* = Color{ .x = 1.0, .y = 1.0, .z = 1.0 };
         return true;
+    }
+
+    fn reflectance(cos: f64, refraction_idx: f64) f64 {
+        const r0 = (1.0 - refraction_idx) / (1.0 + refraction_idx);
+        const r1 = r0 * r0;
+        return r1 + (1.0 - r1) * math.pow(f64, 1.0 - cos, 5.0);
     }
 };
 
