@@ -1,4 +1,5 @@
 const std = @import("std");
+const debug = std.debug;
 
 const Vec3 = struct {
     x: f64,
@@ -26,7 +27,36 @@ const Vec3 = struct {
     }
 
     pub fn normalized(v: Vec3) Vec3 {
-        return v.div(v.norm());
+        const n = v.norm();
+        if (n == 0.0) {
+            return v;
+        } else {
+            return v.div(n);
+        }
+    }
+
+    pub fn add(u: Vec3, v: Vec3) Vec3 {
+        return Vec3{
+            .x = u.x + v.x,
+            .y = u.y + v.y,
+            .z = u.z + v.z,
+        };
+    }
+
+    pub fn sub(u: Vec3, v: Vec3) Vec3 {
+        return Vec3{
+            .x = u.x - v.x,
+            .y = u.y - v.y,
+            .z = u.z - v.z,
+        };
+    }
+
+    pub fn mul(v: Vec3, t: f64) Vec3 {
+        return Vec3{
+            .x = v.x * t,
+            .y = v.y * t,
+            .z = v.z * t,
+        };
     }
 
     pub fn div(v: Vec3, t: f64) Vec3 {
@@ -36,10 +66,29 @@ const Vec3 = struct {
             .z = v.z / t,
         };
     }
+
+    pub fn pp(v: Vec3) void {
+        debug.print("{} {} {}\n", .{ v.x, v.y, v.z });
+    }
 };
 
 const Point3 = Vec3;
 const Color = Vec3;
+
+const Ray = struct {
+    origin: Vec3,
+    dir: Vec3,
+
+    pub fn at(r: Ray, t: f64) Point3 {
+        return r.origin.add(r.dir.mul(t));
+    }
+};
+
+fn rayColor(r: Ray) Color {
+    const unit_dir = r.dir.normalized();
+    const t = 0.5 * (unit_dir.y + 1.0);
+    return (Color{ .x = 1.0, .y = 1.0, .z = 1.0 }).mul(1.0 - t).add((Color{ .x = 0.5, .y = 0.7, .z = 1.0 }).mul(t));
+}
 
 fn writeColor(out: anytype, c: Color) !void {
     try out.print("{} {} {}\n", .{
@@ -52,8 +101,19 @@ fn writeColor(out: anytype, c: Color) !void {
 pub fn main() !void {
     // Image
 
-    const image_width = 256;
-    const image_height = 256;
+    const aspect_ratio = 16.0 / 9.0;
+    const image_width = 400;
+    const image_height = @floatToInt(comptime_int, @divTrunc(image_width, aspect_ratio));
+
+    // Camera
+    const viewport_height = 2.0;
+    const viewport_width = aspect_ratio * viewport_height;
+    const focal_length = 1.0;
+
+    const origin = Point3{ .x = 0.0, .y = 0.0, .z = 0.0 };
+    const horizontal = Vec3{ .x = viewport_width, .y = 0.0, .z = 0.0 };
+    const vertial = Vec3{ .x = 0.0, .y = viewport_height, .z = 0.0 };
+    const lower_left_corner = origin.sub(horizontal.div(2.0)).sub(vertial.div(2.0)).sub(Vec3{ .x = 0.0, .y = 0.0, .z = focal_length });
 
     // Render
 
@@ -68,11 +128,12 @@ pub fn main() !void {
         std.debug.print("\rScanlines remaining: {}", .{j});
         var i: i32 = 0;
         while (i < image_width) : (i += 1) {
-            try writeColor(stdout, Color{
-                .x = @intToFloat(f64, i) / (image_width - 1),
-                .y = @intToFloat(f64, j) / (image_height - 1),
-                .z = 0.25,
-            });
+            const u = @intToFloat(f64, i) / (image_width - 1);
+            const v = @intToFloat(f64, j) / (image_height - 1);
+            const dir = lower_left_corner.add(horizontal.mul(u)).add(vertial.mul(v)).sub(origin);
+            const r = Ray{ .origin = origin, .dir = dir };
+            const pixelColor = rayColor(r);
+            try writeColor(stdout, pixelColor);
         }
     }
 
