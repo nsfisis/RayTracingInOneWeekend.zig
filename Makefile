@@ -1,5 +1,5 @@
 .PHONY: all
-all:
+all: fmt
 	@rm -f out.ppm
 	@zig build run > out.ppm
 

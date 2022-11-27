@@ -16,6 +16,7 @@ pub fn main() !void {
 
     var j: i32 = image_height - 1;
     while (j >= 0) {
+        std.debug.print("\rScanlines remaining: {}", .{j});
         var i: i32 = 0;
         while (i < image_width) {
             const r = @intToFloat(f64, i) / (image_width - 1);
