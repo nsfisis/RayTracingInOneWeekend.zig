@@ -1,5 +1,6 @@
 const std = @import("std");
 const debug = std.debug;
+const ArrayList = std.ArrayList;
 
 const Vec3 = struct {
     x: f64,
@@ -84,30 +85,105 @@ const Ray = struct {
     }
 };
 
-fn hitSphere(center: Point3, radius: f64, r: Ray) f64 {
-    const oc = r.origin.sub(center);
-    const a = r.dir.normSquared();
-    const half_b = Vec3.dot(oc, r.dir);
-    const c = oc.normSquared() - radius * radius;
-    const discriminant = half_b * half_b - a * c;
-    if (discriminant < 0.0) {
-        // r does not intersect the sphere.
-        return -1.0;
-    } else {
-        // root of the equation.
-        return (-half_b - @sqrt(discriminant)) / a;
+const HitRecord = struct {
+    // The point where the ray and the hittable hits.
+    p: Point3,
+    // The normal of the hittable at p.
+    normal: Vec3,
+    // p = ray.at(t)
+    t: f64,
+    // True if the ray hits the hittable from the front face, i.e., outside of it.
+    front_face: bool,
+};
+
+const HittableTag = enum {
+    sphere,
+    list,
+};
+
+const Hittable = union(HittableTag) {
+    sphere: Sphere,
+    list: HittableList,
+
+    fn hit(h: Hittable, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
+        return switch (h) {
+            HittableTag.sphere => |sphere| sphere.hit(r, t_min, t_max, record),
+            HittableTag.list => |list| list.hit(r, t_min, t_max, record),
+        };
     }
+};
+
+const Sphere = struct {
+    center: Point3,
+    radius: f64,
+
+    fn hit(sphere: Sphere, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
+        const oc = r.origin.sub(sphere.center);
+        const a = r.dir.normSquared();
+        const half_b = Vec3.dot(oc, r.dir);
+        const c = oc.normSquared() - sphere.radius * sphere.radius;
+
+        const discriminant = half_b * half_b - a * c;
+        if (discriminant < 0.0) {
+            // r does not intersect the sphere.
+            return false;
+        }
+        const sqrtd = @sqrt(discriminant);
+
+        // Find the nearest root that lies in the acceptable range.
+        var root = (-half_b - sqrtd) / a;
+        if (root < t_min or t_max < root) {
+            root = (-half_b + sqrtd) / a;
+            if (root < t_min or t_max < root) {
+                // out of range
+                return false;
+            }
+        }
+
+        record.t = root;
+        record.p = r.at(root);
+        const outward_normal = (record.p.sub(sphere.center)).div(sphere.radius);
+        record.front_face = Vec3.dot(outward_normal, r.dir) < 0.0;
+        if (record.front_face) {
+            record.normal = outward_normal;
+        } else {
+            record.normal = outward_normal.mul(-1.0);
+        }
+
+        return true;
+    }
+};
+
+const HittableList = struct {
+    objects: ArrayList(*const Hittable),
+
+    fn hit(list: HittableList, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
+        var hit_anything = false;
+        var closest_so_far = t_max;
+
+        for (list.objects.items) |object| {
+            var rec: HitRecord = undefined;
+            if (object.hit(r, t_min, closest_so_far, &rec)) {
+                hit_anything = true;
+                closest_so_far = rec.t;
+                record.* = rec;
+            }
+        }
+        return hit_anything;
+    }
+};
+
+const inf = std.math.inf(f64);
+const pi = std.math.pi(f64);
+
+fn deg2rad(degree: f64) f64 {
+    return degree * pi / 180.0;
 }
 
-fn rayColor(r: Ray) Color {
-    const sphereOrigin = Point3{ .x = 0.0, .y = 0.0, .z = -1.0 };
-    const sphereRadius = 0.5;
-
-    const t = hitSphere(sphereOrigin, sphereRadius, r);
-    if (t > 0.0) {
-        // r hints the sphere.
-        const sphereNormal = r.at(t).sub(sphereOrigin).normalized();
-        return (Color{ .x = sphereNormal.x + 1.0, .y = sphereNormal.y + 1.0, .z = sphereNormal.z + 1.0 }).mul(0.5);
+fn rayColor(r: Ray, world: Hittable) Color {
+    var rec: HitRecord = undefined;
+    if (world.hit(r, 0, inf, &rec)) {
+        return rec.normal.add(Color{ .x = 1.0, .y = 1.0, .z = 1.0 }).mul(0.5);
     }
     const unit_dir = r.dir.normalized();
     const s = 0.5 * (unit_dir.y + 1.0);
@@ -123,11 +199,24 @@ fn writeColor(out: anytype, c: Color) !void {
 }
 
 pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer debug.assert(!gpa.deinit());
+
     // Image
 
     const aspect_ratio = 16.0 / 9.0;
     const image_width = 400;
     const image_height = @floatToInt(comptime_int, @divTrunc(image_width, aspect_ratio));
+
+    // World
+    const sphere1 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = 0.0, .y = 0.0, .z = -1.0 }, .radius = 0.5 } };
+    const sphere2 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = 0.0, .y = -100.5, .z = -1.0 }, .radius = 100.0 } };
+    var hittable_objects = ArrayList(*const Hittable).init(allocator);
+    try hittable_objects.append(&sphere1);
+    try hittable_objects.append(&sphere2);
+    const world = Hittable{ .list = HittableList{ .objects = hittable_objects } };
+    defer hittable_objects.deinit();
 
     // Camera
     const viewport_height = 2.0;
@@ -140,7 +229,6 @@ pub fn main() !void {
     const lower_left_corner = origin.sub(horizontal.div(2.0)).sub(vertial.div(2.0)).sub(Vec3{ .x = 0.0, .y = 0.0, .z = focal_length });
 
     // Render
-
     const stdout_file = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(stdout_file);
     const stdout = bw.writer();
@@ -156,7 +244,7 @@ pub fn main() !void {
             const v = @intToFloat(f64, j) / (image_height - 1);
             const dir = lower_left_corner.add(horizontal.mul(u)).add(vertial.mul(v)).sub(origin);
             const r = Ray{ .origin = origin, .dir = dir };
-            const pixelColor = rayColor(r);
+            const pixelColor = rayColor(r, world);
             try writeColor(stdout, pixelColor);
         }
     }
