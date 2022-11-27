@@ -253,6 +253,13 @@ const Hittable = union(HittableTag) {
             HittableTag.list => |list| list.hit(r, t_min, t_max, record),
         };
     }
+
+    fn deinit(h: *const Hittable, allocator: anytype) void {
+        return switch (h.*) {
+            HittableTag.sphere => |sphere| sphere.deinit(allocator),
+            HittableTag.list => |list| list.deinit(allocator),
+        };
+    }
 };
 
 const Sphere = struct {
@@ -296,10 +303,24 @@ const Sphere = struct {
 
         return true;
     }
+
+    fn deinit(sphere: *const Sphere, allocator: anytype) void {
+        allocator.destroy(sphere.material);
+    }
 };
 
+fn makeSphere(center: Point3, radius: f64, material: *const Material) Hittable {
+    return Hittable{
+        .sphere = Sphere{
+            .center = center,
+            .radius = radius,
+            .material = material,
+        },
+    };
+}
+
 const HittableList = struct {
-    objects: ArrayList(*const Hittable),
+    objects: ArrayList(Hittable),
 
     fn hit(list: HittableList, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
         var hit_anything = false;
@@ -314,6 +335,13 @@ const HittableList = struct {
             }
         }
         return hit_anything;
+    }
+
+    fn deinit(list: *const HittableList, allocator: anytype) void {
+        for (list.objects.items) |object| {
+            object.deinit(allocator);
+        }
+        list.objects.deinit();
     }
 };
 
@@ -411,6 +439,60 @@ fn writeColor(out: anytype, c: Color, samples_per_pixel: u32) !void {
     });
 }
 
+fn generateRandomScene(rand: std.rand.Random, allocator: anytype) !Hittable {
+    var hittable_objects = ArrayList(Hittable).init(allocator);
+
+    var mat_ground = try allocator.create(Material);
+    var mat1 = try allocator.create(Material);
+    var mat2 = try allocator.create(Material);
+    var mat3 = try allocator.create(Material);
+
+    mat_ground.* = Material{ .diffuse = DiffuseMaterial{ .albedo = rgb(0.5, 0.5, 0.5) } };
+    mat1.* = Material{ .dielectric = DielectricMaterial{ .ir = 1.5 } };
+    mat2.* = Material{ .diffuse = DiffuseMaterial{ .albedo = rgb(0.4, 0.2, 0.1) } };
+    mat3.* = Material{ .metal = MetalMaterial{ .albedo = rgb(0.7, 0.6, 0.5), .fuzz = 0.0 } };
+
+    try hittable_objects.append(makeSphere(Point3{ .x = 0, .y = -1000, .z = 0 }, 1000, mat_ground));
+    try hittable_objects.append(makeSphere(Point3{ .x = 0, .y = 1, .z = 0 }, 1.0, mat1));
+    try hittable_objects.append(makeSphere(Point3{ .x = -4, .y = 1, .z = 0 }, 1.0, mat2));
+    try hittable_objects.append(makeSphere(Point3{ .x = 4, .y = 1, .z = 0 }, 1.0, mat3));
+
+    var a: i32 = -11;
+    while (a < 11) : (a += 1) {
+        var b: i32 = -11;
+        while (b < 11) : (b += 1) {
+            const choose_mat = randomReal01(rand);
+            const center = Point3{
+                .x = @intToFloat(f64, a) + 0.9 * randomReal01(rand),
+                .y = 0.2,
+                .z = @intToFloat(f64, b) + 0.9 * randomReal01(rand),
+            };
+
+            if (center.sub(Point3{ .x = 4, .y = 0.2, .z = 0 }).norm() <= 0.9) {
+                continue;
+            }
+
+            var mat_sphere = try allocator.create(Material);
+            if (choose_mat < 0.8) {
+                // diffuse
+                const albedo = Color.random01(rand).mulV(Color.random01(rand));
+                mat_sphere.* = Material{ .diffuse = DiffuseMaterial{ .albedo = albedo } };
+            } else if (choose_mat < 0.95) {
+                // metal
+                const albedo = Color.random(rand, 0.5, 1);
+                const fuzz = randomReal(rand, 0, 0.5);
+                mat_sphere.* = Material{ .metal = MetalMaterial{ .albedo = albedo, .fuzz = fuzz } };
+            } else {
+                // glass
+                mat_sphere.* = Material{ .dielectric = DielectricMaterial{ .ir = 1.5 } };
+            }
+            try hittable_objects.append(makeSphere(center, 0.2, mat_sphere));
+        }
+    }
+
+    return Hittable{ .list = HittableList{ .objects = hittable_objects } };
+}
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
@@ -420,41 +502,25 @@ pub fn main() !void {
     var rand = rng.random();
 
     // Image
-    const aspect_ratio = 16.0 / 9.0;
-    const image_width = 400;
+    const aspect_ratio = 3.0 / 2.0;
+    const image_width = 600;
     const image_height = @floatToInt(comptime_int, @divTrunc(image_width, aspect_ratio));
     const samples_per_pixel = 100;
     const max_depth = 50;
 
-    const material_ground = Material{ .diffuse = DiffuseMaterial{ .albedo = rgb(0.8, 0.8, 0.0) } };
-    const material_center = Material{ .diffuse = DiffuseMaterial{ .albedo = rgb(0.1, 0.2, 0.5) } };
-    const material_left = Material{ .dielectric = DielectricMaterial{ .ir = 1.5 } };
-    const material_right = Material{ .metal = MetalMaterial{ .albedo = rgb(0.8, 0.6, 0.2), .fuzz = 0.0 } };
-    const sphere1 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = 0.0, .y = -100.5, .z = -1.0 }, .radius = 100.0, .material = &material_ground } };
-    const sphere2 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = 0.0, .y = 0.0, .z = -1.0 }, .radius = 0.5, .material = &material_center } };
-    const sphere3 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = -1.0, .y = 0.0, .z = -1.0 }, .radius = 0.5, .material = &material_left } };
-    const sphere4 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = -1.0, .y = 0.0, .z = -1.0 }, .radius = -0.45, .material = &material_left } };
-    const sphere5 = Hittable{ .sphere = Sphere{ .center = Point3{ .x = 1.0, .y = 0.0, .z = -1.0 }, .radius = 0.5, .material = &material_right } };
-    var hittable_objects = ArrayList(*const Hittable).init(allocator);
-    try hittable_objects.append(&sphere1);
-    try hittable_objects.append(&sphere2);
-    try hittable_objects.append(&sphere3);
-    try hittable_objects.append(&sphere4);
-    try hittable_objects.append(&sphere5);
-    const world = Hittable{ .list = HittableList{ .objects = hittable_objects } };
-    defer hittable_objects.deinit();
+    // World
+    const world = try generateRandomScene(rand, allocator);
+    defer world.deinit(allocator);
 
     // Camera
-    const lookFrom = Point3{ .x = 3.0, .y = 3.0, .z = 2.0 };
-    const lookAt = Point3{ .x = 0.0, .y = 0.0, .z = -1.0 };
     const camera = Camera.init(
-        lookFrom,
-        lookAt,
-        Vec3{ .x = 0.0, .y = 1.0, .z = 0.0 },
+        Point3{ .x = 12, .y = 2, .z = 3 },
+        Point3{ .x = 0, .y = 0, .z = 0 },
+        Vec3{ .x = 0, .y = 1, .z = 0 },
         20.0,
         aspect_ratio,
-        2.0,
-        lookFrom.sub(lookAt).norm(),
+        0.1,
+        10.0,
     );
 
     // Render
