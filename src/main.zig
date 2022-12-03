@@ -139,7 +139,7 @@ const Point3 = Vec3;
 const Color = Vec3;
 
 fn rgb(r: f64, g: f64, b: f64) Color {
-    return Color{ .x = r, .y = g, .z = b };
+    return .{ .x = r, .y = g, .z = b };
 }
 
 const Ray = struct {
@@ -180,7 +180,7 @@ const DiffuseMaterial = struct {
         if (scatter_direction.near_zero()) {
             scatter_direction = record.normal;
         }
-        scattered.* = Ray{ .origin = record.p, .dir = scatter_direction };
+        scattered.* = .{ .origin = record.p, .dir = scatter_direction };
         attenuation.* = mat.albedo;
         return true;
     }
@@ -193,7 +193,7 @@ const MetalMaterial = struct {
     fn scatter(mat: MetalMaterial, r_in: Ray, record: HitRecord, attenuation: *Color, scattered: *Ray, rand: std.rand.Random) bool {
         debug.assert(mat.fuzz <= 1.0);
         const reflected = reflect(r_in.dir.normalized(), record.normal);
-        scattered.* = Ray{ .origin = record.p, .dir = reflected.add(randomPointInUnitSphere(rand).mul(mat.fuzz)) };
+        scattered.* = .{ .origin = record.p, .dir = reflected.add(randomPointInUnitSphere(rand).mul(mat.fuzz)) };
         attenuation.* = mat.albedo;
         return reflected.dot(record.normal) > 0.0;
     }
@@ -213,7 +213,7 @@ const DielectricMaterial = struct {
         const can_refract = refraction_ratio * sin_theta <= 1.0;
 
         const dir = if (can_refract and reflectance(cos_theta, refraction_ratio) < randomReal01(rand)) refract(unit_dir, record.normal, refraction_ratio) else reflect(unit_dir, record.normal);
-        scattered.* = Ray{ .origin = record.p, .dir = dir };
+        scattered.* = .{ .origin = record.p, .dir = dir };
         attenuation.* = rgb(1.0, 1.0, 1.0);
         return true;
     }
@@ -310,8 +310,8 @@ const Sphere = struct {
 };
 
 fn makeSphere(center: Point3, radius: f64, material: *const Material) Hittable {
-    return Hittable{
-        .sphere = Sphere{
+    return .{
+        .sphere = .{
             .center = center,
             .radius = radius,
             .material = material,
@@ -387,7 +387,7 @@ const Camera = struct {
         const vertical = v.mul(viewport_height * focus_dist);
         const lower_left_corner = origin.sub(horizontal.div(2.0)).sub(vertical.div(2.0)).sub(w.mul(focus_dist));
 
-        return Camera{
+        return .{
             .origin = origin,
             .horizontal = horizontal,
             .vertical = vertical,
@@ -403,7 +403,7 @@ const Camera = struct {
         const rd = randomPointInUnitDisk(rand).mul(camera.lens_radius);
         const offset = camera.u.mul(rd.x).add(camera.v.mul(rd.y));
         const dir = camera.lower_left_corner.add(camera.horizontal.mul(s)).add(camera.vertical.mul(t)).sub(camera.origin).sub(offset);
-        return Ray{
+        return .{
             .origin = camera.origin.add(offset),
             .dir = dir,
         };
@@ -447,15 +447,15 @@ fn generateRandomScene(rand: std.rand.Random, allocator: anytype) !Hittable {
     var mat2 = try allocator.create(Material);
     var mat3 = try allocator.create(Material);
 
-    mat_ground.* = Material{ .diffuse = DiffuseMaterial{ .albedo = rgb(0.5, 0.5, 0.5) } };
-    mat1.* = Material{ .dielectric = DielectricMaterial{ .ir = 1.5 } };
-    mat2.* = Material{ .diffuse = DiffuseMaterial{ .albedo = rgb(0.4, 0.2, 0.1) } };
-    mat3.* = Material{ .metal = MetalMaterial{ .albedo = rgb(0.7, 0.6, 0.5), .fuzz = 0.0 } };
+    mat_ground.* = .{ .diffuse = .{ .albedo = rgb(0.5, 0.5, 0.5) } };
+    mat1.* = .{ .dielectric = .{ .ir = 1.5 } };
+    mat2.* = .{ .diffuse = .{ .albedo = rgb(0.4, 0.2, 0.1) } };
+    mat3.* = .{ .metal = .{ .albedo = rgb(0.7, 0.6, 0.5), .fuzz = 0.0 } };
 
-    try hittable_objects.append(makeSphere(Point3{ .x = 0, .y = -1000, .z = 0 }, 1000, mat_ground));
-    try hittable_objects.append(makeSphere(Point3{ .x = 0, .y = 1, .z = 0 }, 1.0, mat1));
-    try hittable_objects.append(makeSphere(Point3{ .x = -4, .y = 1, .z = 0 }, 1.0, mat2));
-    try hittable_objects.append(makeSphere(Point3{ .x = 4, .y = 1, .z = 0 }, 1.0, mat3));
+    try hittable_objects.append(makeSphere(.{ .x = 0, .y = -1000, .z = 0 }, 1000, mat_ground));
+    try hittable_objects.append(makeSphere(.{ .x = 0, .y = 1, .z = 0 }, 1.0, mat1));
+    try hittable_objects.append(makeSphere(.{ .x = -4, .y = 1, .z = 0 }, 1.0, mat2));
+    try hittable_objects.append(makeSphere(.{ .x = 4, .y = 1, .z = 0 }, 1.0, mat3));
 
     var a: i32 = -11;
     while (a < 11) : (a += 1) {
@@ -468,7 +468,7 @@ fn generateRandomScene(rand: std.rand.Random, allocator: anytype) !Hittable {
                 .z = @intToFloat(f64, b) + 0.9 * randomReal01(rand),
             };
 
-            if (center.sub(Point3{ .x = 4, .y = 0.2, .z = 0 }).norm() <= 0.9) {
+            if (center.sub(.{ .x = 4, .y = 0.2, .z = 0 }).norm() <= 0.9) {
                 continue;
             }
 
@@ -476,21 +476,21 @@ fn generateRandomScene(rand: std.rand.Random, allocator: anytype) !Hittable {
             if (choose_mat < 0.8) {
                 // diffuse
                 const albedo = Color.random01(rand).mulV(Color.random01(rand));
-                mat_sphere.* = Material{ .diffuse = DiffuseMaterial{ .albedo = albedo } };
+                mat_sphere.* = .{ .diffuse = .{ .albedo = albedo } };
             } else if (choose_mat < 0.95) {
                 // metal
                 const albedo = Color.random(rand, 0.5, 1);
                 const fuzz = randomReal(rand, 0, 0.5);
-                mat_sphere.* = Material{ .metal = MetalMaterial{ .albedo = albedo, .fuzz = fuzz } };
+                mat_sphere.* = .{ .metal = .{ .albedo = albedo, .fuzz = fuzz } };
             } else {
                 // glass
-                mat_sphere.* = Material{ .dielectric = DielectricMaterial{ .ir = 1.5 } };
+                mat_sphere.* = .{ .dielectric = .{ .ir = 1.5 } };
             }
             try hittable_objects.append(makeSphere(center, 0.2, mat_sphere));
         }
     }
 
-    return Hittable{ .list = HittableList{ .objects = hittable_objects } };
+    return .{ .list = .{ .objects = hittable_objects } };
 }
 
 pub fn main() !void {
@@ -514,9 +514,9 @@ pub fn main() !void {
 
     // Camera
     const camera = Camera.init(
-        Point3{ .x = 12, .y = 2, .z = 3 },
-        Point3{ .x = 0, .y = 0, .z = 0 },
-        Vec3{ .x = 0, .y = 1, .z = 0 },
+        .{ .x = 12, .y = 2, .z = 3 },
+        .{ .x = 0, .y = 0, .z = 0 },
+        .{ .x = 0, .y = 1, .z = 0 },
         20.0,
         aspect_ratio,
         0.1,
