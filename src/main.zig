@@ -145,6 +145,7 @@ fn rgb(r: f64, g: f64, b: f64) Color {
 const Ray = struct {
     origin: Vec3,
     dir: Vec3,
+    time: f64,
 
     pub fn at(r: Ray, t: f64) Point3 {
         return r.origin.add(r.dir.mul(t));
@@ -175,12 +176,11 @@ const DiffuseMaterial = struct {
     albedo: Color,
 
     fn scatter(mat: DiffuseMaterial, r_in: Ray, record: HitRecord, attenuation: *Color, scattered: *Ray, rand: std.rand.Random) bool {
-        _ = r_in;
         var scatter_direction = record.normal.add(randomUnitVector(rand));
         if (scatter_direction.near_zero()) {
             scatter_direction = record.normal;
         }
-        scattered.* = .{ .origin = record.p, .dir = scatter_direction };
+        scattered.* = .{ .origin = record.p, .dir = scatter_direction, .time = r_in.time };
         attenuation.* = mat.albedo;
         return true;
     }
@@ -193,7 +193,7 @@ const MetalMaterial = struct {
     fn scatter(mat: MetalMaterial, r_in: Ray, record: HitRecord, attenuation: *Color, scattered: *Ray, rand: std.rand.Random) bool {
         debug.assert(mat.fuzz <= 1.0);
         const reflected = reflect(r_in.dir.normalized(), record.normal);
-        scattered.* = .{ .origin = record.p, .dir = reflected.add(randomPointInUnitSphere(rand).mul(mat.fuzz)) };
+        scattered.* = .{ .origin = record.p, .dir = reflected.add(randomPointInUnitSphere(rand).mul(mat.fuzz)), .time = r_in.time };
         attenuation.* = mat.albedo;
         return reflected.dot(record.normal) > 0.0;
     }
@@ -213,7 +213,7 @@ const DielectricMaterial = struct {
         const can_refract = refraction_ratio * sin_theta <= 1.0;
 
         const dir = if (can_refract and reflectance(cos_theta, refraction_ratio) < randomReal01(rand)) refract(unit_dir, record.normal, refraction_ratio) else reflect(unit_dir, record.normal);
-        scattered.* = .{ .origin = record.p, .dir = dir };
+        scattered.* = .{ .origin = record.p, .dir = dir, .time = r_in.time };
         attenuation.* = rgb(1.0, 1.0, 1.0);
         return true;
     }
@@ -240,16 +240,19 @@ const HitRecord = struct {
 
 const HittableTag = enum {
     sphere,
+    movingSphere,
     list,
 };
 
 const Hittable = union(HittableTag) {
     sphere: Sphere,
+    movingSphere: MovingSphere,
     list: HittableList,
 
     fn hit(h: Hittable, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
         return switch (h) {
             HittableTag.sphere => |sphere| sphere.hit(r, t_min, t_max, record),
+            HittableTag.movingSphere => |movingSphere| movingSphere.hit(r, t_min, t_max, record),
             HittableTag.list => |list| list.hit(r, t_min, t_max, record),
         };
     }
@@ -257,6 +260,7 @@ const Hittable = union(HittableTag) {
     fn deinit(h: *const Hittable, allocator: anytype) void {
         return switch (h.*) {
             HittableTag.sphere => |sphere| sphere.deinit(allocator),
+            HittableTag.movingSphere => |movingSphere| movingSphere.deinit(allocator),
             HittableTag.list => |list| list.deinit(allocator),
         };
     }
@@ -305,6 +309,61 @@ const Sphere = struct {
     }
 
     fn deinit(sphere: *const Sphere, allocator: anytype) void {
+        allocator.destroy(sphere.material);
+    }
+};
+
+const MovingSphere = struct {
+    center0: Point3,
+    center1: Point3,
+    time0: f64,
+    time1: f64,
+    radius: f64,
+    material: *const Material,
+
+    fn hit(sphere: MovingSphere, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
+        const center_ = sphere.center(r.time);
+        const oc = r.origin.sub(center_);
+        const a = r.dir.normSquared();
+        const half_b = Vec3.dot(oc, r.dir);
+        const c = oc.normSquared() - sphere.radius * sphere.radius;
+
+        const discriminant = half_b * half_b - a * c;
+        if (discriminant < 0.0) {
+            // r does not intersect the sphere.
+            return false;
+        }
+        const sqrtd = @sqrt(discriminant);
+
+        // Find the nearest root that lies in the acceptable range.
+        var root = (-half_b - sqrtd) / a;
+        if (root < t_min or t_max < root) {
+            root = (-half_b + sqrtd) / a;
+            if (root < t_min or t_max < root) {
+                // out of range
+                return false;
+            }
+        }
+
+        record.t = root;
+        record.p = r.at(root);
+        const outward_normal = (record.p.sub(center_)).div(sphere.radius);
+        record.front_face = Vec3.dot(outward_normal, r.dir) < 0.0;
+        if (record.front_face) {
+            record.normal = outward_normal;
+        } else {
+            record.normal = outward_normal.mul(-1.0);
+        }
+        record.material = sphere.material;
+
+        return true;
+    }
+
+    fn center(sphere: MovingSphere, t: f64) Point3 {
+        return sphere.center0.add(sphere.center1.sub(sphere.center0).mul((t - sphere.time0) / (sphere.time1 - sphere.time0)));
+    }
+
+    fn deinit(sphere: *const MovingSphere, allocator: anytype) void {
         allocator.destroy(sphere.material);
     }
 };
@@ -371,8 +430,20 @@ const Camera = struct {
     v: Vec3,
     w: Vec3,
     lens_radius: f64,
+    time0: f64,
+    time1: f64,
 
-    fn init(lookFrom: Point3, lookAt: Point3, vup: Vec3, vfov: f64, aspect_ratio: f64, aperture: f64, focus_dist: f64) Camera {
+    fn init(
+        lookFrom: Point3,
+        lookAt: Point3,
+        vup: Vec3,
+        vfov: f64,
+        aspect_ratio: f64,
+        aperture: f64,
+        focus_dist: f64,
+        time0: f64,
+        time1: f64,
+    ) Camera {
         const theta = deg2rad(vfov);
         const h = @tan(theta / 2);
         const viewport_height = 2.0 * h;
@@ -396,6 +467,8 @@ const Camera = struct {
             .v = v,
             .w = w,
             .lens_radius = aperture / 2.0,
+            .time0 = time0,
+            .time1 = time1,
         };
     }
 
@@ -406,6 +479,7 @@ const Camera = struct {
         return .{
             .origin = camera.origin.add(offset),
             .dir = dir,
+            .time = randomReal(rand, camera.time0, camera.time1),
         };
     }
 };
@@ -457,10 +531,10 @@ fn generateRandomScene(rand: std.rand.Random, allocator: anytype) !Hittable {
     try hittable_objects.append(makeSphere(.{ .x = -4, .y = 1, .z = 0 }, 1.0, mat2));
     try hittable_objects.append(makeSphere(.{ .x = 4, .y = 1, .z = 0 }, 1.0, mat3));
 
-    var a: i32 = -11;
-    while (a < 11) : (a += 1) {
-        var b: i32 = -11;
-        while (b < 11) : (b += 1) {
+    var a: i32 = -3;
+    while (a < 3) : (a += 1) {
+        var b: i32 = -3;
+        while (b < 3) : (b += 1) {
             const choose_mat = randomReal01(rand);
             const center = Point3{
                 .x = @intToFloat(f64, a) + 0.9 * randomReal01(rand),
@@ -477,16 +551,26 @@ fn generateRandomScene(rand: std.rand.Random, allocator: anytype) !Hittable {
                 // diffuse
                 const albedo = Color.random01(rand).mulV(Color.random01(rand));
                 mat_sphere.* = .{ .diffuse = .{ .albedo = albedo } };
+                const center1 = center.add(.{ .x = 0, .y = randomReal(rand, 0, 0.5), .z = 0 });
+                try hittable_objects.append(.{ .movingSphere = .{
+                    .center0 = center,
+                    .center1 = center1,
+                    .time0 = 0,
+                    .time1 = 1,
+                    .radius = 0.2,
+                    .material = mat_sphere,
+                } });
             } else if (choose_mat < 0.95) {
                 // metal
                 const albedo = Color.random(rand, 0.5, 1);
                 const fuzz = randomReal(rand, 0, 0.5);
                 mat_sphere.* = .{ .metal = .{ .albedo = albedo, .fuzz = fuzz } };
+                try hittable_objects.append(makeSphere(center, 0.2, mat_sphere));
             } else {
                 // glass
                 mat_sphere.* = .{ .dielectric = .{ .ir = 1.5 } };
+                try hittable_objects.append(makeSphere(center, 0.2, mat_sphere));
             }
-            try hittable_objects.append(makeSphere(center, 0.2, mat_sphere));
         }
     }
 
@@ -505,7 +589,7 @@ pub fn main() !void {
     const aspect_ratio = 3.0 / 2.0;
     const image_width = 600;
     const image_height = @floatToInt(comptime_int, @divTrunc(image_width, aspect_ratio));
-    const samples_per_pixel = 100;
+    const samples_per_pixel = 50;
     const max_depth = 50;
 
     // World
@@ -521,6 +605,8 @@ pub fn main() !void {
         aspect_ratio,
         0.1,
         10.0,
+        0,
+        1,
     );
 
     // Render
