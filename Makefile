@@ -1,11 +1,13 @@
+BUILDFLAGS := -Drelease-fast=true
+
 .PHONY: all
 all: fmt
 	@rm -f out.ppm
-	@zig build run > out.ppm
+	@zig build ${BUILDFLAGS} run > out.ppm
 
 .PHONY: build
 build: fmt
-	@zig build
+	@zig build ${BUILDFLAGS}
 
 .PHONY: fmt
 fmt:
