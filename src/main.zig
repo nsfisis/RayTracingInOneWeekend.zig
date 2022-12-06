@@ -234,6 +234,9 @@ const HitRecord = struct {
     material: *const Material,
     // p = ray.at(t)
     t: f64,
+    // The coordinate of the surface where the ray intersects.
+    u: f64,
+    v: f64,
     // True if the ray hits the hittable from the front face, i.e., outside of it.
     front_face: bool,
 };
@@ -624,6 +627,31 @@ const BvhNode = struct {
     fn deinit(node: *const BvhNode, allocator: anytype) void {
         _ = node;
         _ = allocator;
+    }
+};
+
+const TextureTag = enum {
+    solid,
+};
+
+const Texture = union(TextureTag) {
+    solid: SolidTexture,
+
+    fn value(tx: Texture, u: f64, v: f64, p: Vec3) Color {
+        return switch (tx) {
+            TextureTag.solid => |solidTx| solidTx.value(u, v, p),
+        };
+    }
+};
+
+const SolidTexture = struct {
+    color: Color,
+
+    fn value(tx: SolidTexture, u: f64, v: f64, p: Vec3) Color {
+        _ = u;
+        _ = v;
+        _ = p;
+        return tx.color;
     }
 };
 
