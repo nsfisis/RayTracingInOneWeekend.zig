@@ -173,7 +173,7 @@ const Material = union(MaterialTag) {
 };
 
 const DiffuseMaterial = struct {
-    albedo: Color,
+    albedo: Texture,
 
     fn scatter(mat: DiffuseMaterial, r_in: Ray, record: HitRecord, attenuation: *Color, scattered: *Ray, rand: std.rand.Random) bool {
         var scatter_direction = record.normal.add(randomUnitVector(rand));
@@ -181,7 +181,7 @@ const DiffuseMaterial = struct {
             scatter_direction = record.normal;
         }
         scattered.* = .{ .origin = record.p, .dir = scatter_direction, .time = r_in.time };
-        attenuation.* = mat.albedo;
+        attenuation.* = mat.albedo.value(record.u, record.v, record.p);
         return true;
     }
 };
@@ -319,6 +319,7 @@ const Sphere = struct {
         } else {
             record.normal = outward_normal.mul(-1.0);
         }
+        Sphere.getSphereUv(outward_normal, &record.u, &record.v);
         record.material = sphere.material;
 
         return true;
@@ -334,6 +335,13 @@ const Sphere = struct {
             .max = o.add(.{ .x = r, .y = r, .z = r }),
         };
         return true;
+    }
+
+    fn getSphereUv(p: Point3, u: *f64, v: *f64) void {
+        const phi = math.atan2(f64, -p.z, p.x) + pi;
+        const theta = math.acos(-p.y);
+        u.* = phi / (2.0 * pi);
+        v.* = theta / pi;
     }
 
     fn deinit(sphere: *const Sphere, allocator: anytype) void {
@@ -632,14 +640,29 @@ const BvhNode = struct {
 
 const TextureTag = enum {
     solid,
+    checker,
 };
 
 const Texture = union(TextureTag) {
     solid: SolidTexture,
+    checker: CheckerTexture,
+
+    fn makeSolid(color: Color) Texture {
+        return .{ .solid = .{ .color = color } };
+    }
+
+    fn makeChecker(allocator: std.mem.Allocator, odd: Color, even: Color) !Texture {
+        return .{ .checker = try CheckerTexture.init(
+            allocator,
+            Texture.makeSolid(odd),
+            Texture.makeSolid(even),
+        ) };
+    }
 
     fn value(tx: Texture, u: f64, v: f64, p: Vec3) Color {
         return switch (tx) {
             TextureTag.solid => |solidTx| solidTx.value(u, v, p),
+            TextureTag.checker => |checkerTx| checkerTx.value(u, v, p),
         };
     }
 };
@@ -652,6 +675,34 @@ const SolidTexture = struct {
         _ = v;
         _ = p;
         return tx.color;
+    }
+};
+
+const CheckerTexture = struct {
+    allocator: std.mem.Allocator,
+    odd: *const Texture,
+    even: *const Texture,
+
+    fn init(allocator: std.mem.Allocator, odd: Texture, even: Texture) !CheckerTexture {
+        var odd_ = try allocator.create(Texture);
+        var even_ = try allocator.create(Texture);
+        odd_.* = odd;
+        even_.* = even;
+        return .{
+            .allocator = allocator,
+            .odd = odd_,
+            .even = even_,
+        };
+    }
+
+    fn deinit(tx: CheckerTexture) void {
+        tx.allocator.destroy(tx.even);
+        tx.allocator.destroy(tx.odd);
+    }
+
+    fn value(tx: CheckerTexture, u: f64, v: f64, p: Vec3) Color {
+        const sines = @sin(10 * p.x) * @sin(10 * p.y) * @sin(10 * p.z);
+        return if (sines < 0) tx.odd.value(u, v, p) else tx.even.value(u, v, p);
     }
 };
 
@@ -755,9 +806,11 @@ fn generateRandomScene(rand: std.rand.Random, allocator: anytype) !Hittable {
     var mat2 = try allocator.create(Material);
     var mat3 = try allocator.create(Material);
 
-    mat_ground.* = .{ .diffuse = .{ .albedo = rgb(0.5, 0.5, 0.5) } };
+    const checker = try Texture.makeChecker(allocator, rgb(0.2, 0.3, 0.1), rgb(0.9, 0.9, 0.9));
+
+    mat_ground.* = .{ .diffuse = .{ .albedo = checker } };
     mat1.* = .{ .dielectric = .{ .ir = 1.5 } };
-    mat2.* = .{ .diffuse = .{ .albedo = rgb(0.4, 0.2, 0.1) } };
+    mat2.* = .{ .diffuse = .{ .albedo = .{ .solid = .{ .color = rgb(0.4, 0.2, 0.1) } } } };
     mat3.* = .{ .metal = .{ .albedo = rgb(0.7, 0.6, 0.5), .fuzz = 0.0 } };
 
     try hittable_objects.append(makeSphere(.{ .x = 0, .y = -1000, .z = 0 }, 1000, mat_ground));
@@ -784,7 +837,7 @@ fn generateRandomScene(rand: std.rand.Random, allocator: anytype) !Hittable {
             if (choose_mat < 0.8) {
                 // diffuse
                 const albedo = Color.random01(rand).mulV(Color.random01(rand));
-                mat_sphere.* = .{ .diffuse = .{ .albedo = albedo } };
+                mat_sphere.* = .{ .diffuse = .{ .albedo = .{ .solid = .{ .color = albedo } } } };
                 const center1 = center.add(.{ .x = 0, .y = randomReal(rand, 0, 0.5), .z = 0 });
                 try hittable_objects.append(.{ .movingSphere = .{
                     .center0 = center,
