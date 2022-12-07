@@ -798,6 +798,23 @@ fn writeColor(out: anytype, c: Color, samples_per_pixel: u32) !void {
     });
 }
 
+fn generateTwoSpheres(rand: std.rand.Random, allocator: anytype) !Hittable {
+    _ = rand;
+    var hittable_objects = ArrayList(Hittable).init(allocator);
+
+    const checker = try Texture.makeChecker(allocator, rgb(0.2, 0.3, 0.1), rgb(0.9, 0.9, 0.9));
+    var mat1 = try allocator.create(Material);
+    var mat2 = try allocator.create(Material);
+
+    mat1.* = .{ .diffuse = .{ .albedo = checker } };
+    mat2.* = .{ .diffuse = .{ .albedo = checker } };
+
+    try hittable_objects.append(makeSphere(.{ .x = 0, .y = -10, .z = 0 }, 10, mat1));
+    try hittable_objects.append(makeSphere(.{ .x = 0, .y = 10, .z = 0 }, 10, mat2));
+
+    return .{ .list = .{ .objects = hittable_objects } };
+}
+
 fn generateRandomScene(rand: std.rand.Random, allocator: anytype) !Hittable {
     var hittable_objects = ArrayList(Hittable).init(allocator);
 
@@ -879,18 +896,37 @@ pub fn main() !void {
     const samples_per_pixel = 50;
     const max_depth = 50;
 
+    const scene = 2;
+
     // World
-    const world = try generateRandomScene(rand, allocator);
+    var world: Hittable = undefined;
+    var lookFrom: Point3 = undefined;
+    var lookAt: Point3 = undefined;
+    var vFov: f64 = 40;
+    var aperture: f64 = 0;
+
+    if (scene == 1) {
+        world = try generateRandomScene(rand, allocator);
+        lookFrom = .{ .x = 13, .y = 2, .z = 3 };
+        lookAt = .{ .x = 0, .y = 0, .z = 0 };
+        vFov = 20.0;
+        aperture = 0.1;
+    } else if (scene == 2) {
+        world = try generateTwoSpheres(rand, allocator);
+        lookFrom = .{ .x = 13, .y = 2, .z = 3 };
+        lookAt = .{ .x = 0, .y = 0, .z = 0 };
+        vFov = 20.0;
+    }
     defer world.deinit(allocator);
 
     // Camera
     const camera = Camera.init(
-        .{ .x = 12, .y = 2, .z = 3 },
-        .{ .x = 0, .y = 0, .z = 0 },
+        lookFrom,
+        lookAt,
         .{ .x = 0, .y = 1, .z = 0 },
-        20.0,
+        vFov,
         aspect_ratio,
-        0.1,
+        aperture,
         10.0,
         0,
         1,
