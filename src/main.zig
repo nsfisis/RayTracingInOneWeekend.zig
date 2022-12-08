@@ -162,6 +162,22 @@ fn generateTwoSpheres(rng: Random, allocator: anytype) !Hittable {
     return .{ .list = .{ .objects = hittable_objects } };
 }
 
+fn generateTwoPerlinSpheres(rng: Random, allocator: anytype) !Hittable {
+    var hittable_objects = ArrayList(Hittable).init(allocator);
+
+    const perlin = Texture.makeNoise(rng);
+    var mat1 = try allocator.create(Material);
+    var mat2 = try allocator.create(Material);
+
+    mat1.* = .{ .diffuse = .{ .albedo = perlin } };
+    mat2.* = .{ .diffuse = .{ .albedo = perlin } };
+
+    try hittable_objects.append(makeSphere(.{ .x = 0, .y = -1000, .z = 0 }, 1000, mat1));
+    try hittable_objects.append(makeSphere(.{ .x = 0, .y = 2, .z = 0 }, 2, mat2));
+
+    return .{ .list = .{ .objects = hittable_objects } };
+}
+
 fn generateRandomScene(rng: Random, allocator: anytype) !Hittable {
     var hittable_objects = ArrayList(Hittable).init(allocator);
 
@@ -243,7 +259,7 @@ pub fn main() !void {
     const samples_per_pixel = 50;
     const max_depth = 50;
 
-    const scene = 2;
+    const scene = 3;
 
     // World
     var world: Hittable = undefined;
@@ -260,6 +276,11 @@ pub fn main() !void {
         aperture = 0.1;
     } else if (scene == 2) {
         world = try generateTwoSpheres(rng, allocator);
+        lookFrom = .{ .x = 13, .y = 2, .z = 3 };
+        lookAt = .{ .x = 0, .y = 0, .z = 0 };
+        vFov = 20.0;
+    } else if (scene == 3) {
+        world = try generateTwoPerlinSpheres(rng, allocator);
         lookFrom = .{ .x = 13, .y = 2, .z = 3 };
         lookAt = .{ .x = 0, .y = 0, .z = 0 };
         vFov = 20.0;

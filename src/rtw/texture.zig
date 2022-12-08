@@ -2,15 +2,20 @@ const std = @import("std");
 
 const Color = @import("vec.zig").Color;
 const Vec3 = @import("vec.zig").Vec3;
+const rgb = @import("vec.zig").rgb;
+const Random = @import("rand.zig").Random;
+const Perlin = @import("perlin.zig").Perlin;
 
 const TextureTag = enum {
     solid,
     checker,
+    noise,
 };
 
 pub const Texture = union(TextureTag) {
     solid: SolidTexture,
     checker: CheckerTexture,
+    noise: NoiseTexture,
 
     pub fn makeSolid(color: Color) Texture {
         return .{ .solid = .{ .color = color } };
@@ -24,10 +29,15 @@ pub const Texture = union(TextureTag) {
         ) };
     }
 
+    pub fn makeNoise(rng: Random) Texture {
+        return .{ .noise = .{ .perlin = Perlin.init(rng) } };
+    }
+
     pub fn value(tx: Texture, u: f64, v: f64, p: Vec3) Color {
         return switch (tx) {
             TextureTag.solid => |solidTx| solidTx.value(u, v, p),
             TextureTag.checker => |checkerTx| checkerTx.value(u, v, p),
+            TextureTag.noise => |noiseTx| noiseTx.value(u, v, p),
         };
     }
 };
@@ -68,5 +78,15 @@ pub const CheckerTexture = struct {
     fn value(tx: CheckerTexture, u: f64, v: f64, p: Vec3) Color {
         const sines = @sin(10 * p.x) * @sin(10 * p.y) * @sin(10 * p.z);
         return if (sines < 0) tx.odd.value(u, v, p) else tx.even.value(u, v, p);
+    }
+};
+
+pub const NoiseTexture = struct {
+    perlin: Perlin,
+
+    fn value(tx: NoiseTexture, u: f64, v: f64, p: Vec3) Color {
+        _ = u;
+        _ = v;
+        return rgb(1, 1, 1).mul(tx.perlin.noise(p));
     }
 };
