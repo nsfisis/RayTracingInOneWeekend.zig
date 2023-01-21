@@ -32,11 +32,31 @@ pub const Perlin = struct {
     }
 
     pub fn noise(perlin: Perlin, p: Point3) f64 {
-        const i = @intCast(usize, @floatToInt(i32, 4.0 * p.x) & 255);
-        const j = @intCast(usize, @floatToInt(i32, 4.0 * p.y) & 255);
-        const k = @intCast(usize, @floatToInt(i32, 4.0 * p.z) & 255);
+        const u = p.x - @floor(p.x);
+        const v = p.y - @floor(p.y);
+        const w = p.z - @floor(p.z);
 
-        return perlin.randomNoise[perlin.permX[i] ^ perlin.permY[j] ^ perlin.permZ[k]];
+        const i = @floatToInt(i32, @floor(p.x));
+        const j = @floatToInt(i32, @floor(p.y));
+        const k = @floatToInt(i32, @floor(p.z));
+
+        var c: [2][2][2]f64 = undefined;
+
+        var di: usize = 0;
+        while (di < 2) : (di += 1) {
+            var dj: usize = 0;
+            while (dj < 2) : (dj += 1) {
+                var dk: usize = 0;
+                while (dk < 2) : (dk += 1) {
+                    const ix = @intCast(usize, i + @intCast(i32, di)) & 255;
+                    const iy = @intCast(usize, j + @intCast(i32, dj)) & 255;
+                    const iz = @intCast(usize, k + @intCast(i32, dk)) & 255;
+                    c[di][dj][dk] = perlin.randomNoise[perlin.permX[ix] ^ perlin.permY[iy] ^ perlin.permZ[iz]];
+                }
+            }
+        }
+
+        return trilinearInterp(c, u, v, w);
     }
 
     fn perlinGeneratePerm(rng: Random, p: []usize) void {
@@ -55,5 +75,27 @@ pub const Perlin = struct {
             p[i] = p[target];
             p[target] = tmp;
         }
+    }
+
+    fn trilinearInterp(c: [2][2][2]f64, u: f64, v: f64, w: f64) f64 {
+        var accum: f64 = 0.0;
+        var i: usize = 0;
+        while (i < 2) : (i += 1) {
+            var j: usize = 0;
+            while (j < 2) : (j += 1) {
+                var k: usize = 0;
+                while (k < 2) : (k += 1) {
+                    const ti = @intToFloat(f64, i);
+                    const tj = @intToFloat(f64, j);
+                    const tk = @intToFloat(f64, k);
+                    accum +=
+                        (ti * u + (1.0 - ti) * (1.0 - u)) *
+                        (tj * v + (1.0 - tj) * (1.0 - v)) *
+                        (tk * w + (1.0 - tk) * (1.0 - w)) *
+                        c[i][j][k];
+                }
+            }
+        }
+        return accum;
     }
 };
