@@ -35,6 +35,9 @@ pub const Perlin = struct {
         const u = p.x - @floor(p.x);
         const v = p.y - @floor(p.y);
         const w = p.z - @floor(p.z);
+        const u_ = u * u * (3 - 2 * u);
+        const v_ = v * v * (3 - 2 * v);
+        const w_ = w * w * (3 - 2 * w);
 
         const i = @floatToInt(i32, @floor(p.x));
         const j = @floatToInt(i32, @floor(p.y));
@@ -56,7 +59,7 @@ pub const Perlin = struct {
             }
         }
 
-        return trilinearInterp(c, u, v, w);
+        return trilinearInterp(c, u_, v_, w_);
     }
 
     fn perlinGeneratePerm(rng: Random, p: []usize) void {
