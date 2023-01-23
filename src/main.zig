@@ -165,7 +165,7 @@ fn generateTwoSpheres(rng: Random, allocator: anytype) !Hittable {
 fn generateTwoPerlinSpheres(rng: Random, allocator: anytype) !Hittable {
     var hittable_objects = ArrayList(Hittable).init(allocator);
 
-    const perlin = Texture.makeNoise(rng);
+    const perlin = Texture.makeNoise(4.0, rng);
     var mat1 = try allocator.create(Material);
     var mat2 = try allocator.create(Material);
 

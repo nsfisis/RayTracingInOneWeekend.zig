@@ -29,8 +29,8 @@ pub const Texture = union(TextureTag) {
         ) };
     }
 
-    pub fn makeNoise(rng: Random) Texture {
-        return .{ .noise = .{ .perlin = Perlin.init(rng) } };
+    pub fn makeNoise(scale: f64, rng: Random) Texture {
+        return .{ .noise = .{ .perlin = Perlin.init(rng), .scale = scale } };
     }
 
     pub fn value(tx: Texture, u: f64, v: f64, p: Vec3) Color {
@@ -83,10 +83,11 @@ pub const CheckerTexture = struct {
 
 pub const NoiseTexture = struct {
     perlin: Perlin,
+    scale: f64,
 
     fn value(tx: NoiseTexture, u: f64, v: f64, p: Vec3) Color {
         _ = u;
         _ = v;
-        return rgb(1, 1, 1).mul(tx.perlin.noise(p));
+        return rgb(1, 1, 1).mul(tx.perlin.noise(p.mul(tx.scale)));
     }
 };
