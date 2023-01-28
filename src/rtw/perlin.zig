@@ -78,6 +78,19 @@ pub const Perlin = struct {
         return perlinInterp(c, u_, v_, w_);
     }
 
+    pub fn turb(perlin: Perlin, p: Point3, depth: u8) f64 {
+        var accum: f64 = 0.0;
+        var p_ = p;
+        var weight: f64 = 1.0;
+        var i: u8 = 0;
+        while (i < depth) : (i += 1) {
+            accum += weight * perlin.noise(p_);
+            weight *= 0.5;
+            p_ = p_.mul(2.0);
+        }
+        return @fabs(accum);
+    }
+
     fn permute(rng: Random, p: []usize, n: usize) void {
         var i = n - 1;
         while (i > 0) : (i -= 1) {
