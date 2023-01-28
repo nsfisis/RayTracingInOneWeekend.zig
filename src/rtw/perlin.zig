@@ -3,18 +3,20 @@ const Random = rand.Random;
 const randomReal01 = rand.randomReal01;
 const randomInt = rand.randomInt;
 const Point3 = @import("vec.zig").Point3;
+const Vec3 = @import("vec.zig").Vec3;
 
 pub const Perlin = struct {
     const POINT_COUNT = 256;
 
-    randomNoise: [POINT_COUNT]f64,
+    // TODO: allocate them in heap.
+    randomVec: [POINT_COUNT]Vec3,
     permX: [POINT_COUNT]usize,
     permY: [POINT_COUNT]usize,
     permZ: [POINT_COUNT]usize,
 
     pub fn init(rng: Random) Perlin {
         var perlin = Perlin{
-            .randomNoise = undefined,
+            .randomVec = undefined,
             .permX = undefined,
             .permY = undefined,
             .permZ = undefined,
@@ -22,7 +24,7 @@ pub const Perlin = struct {
 
         var i: usize = 0;
         while (i < POINT_COUNT) : (i += 1) {
-            perlin.randomNoise[i] = randomReal01(rng);
+            perlin.randomVec[i] = Vec3.random(rng, -1, 1).normalized();
         }
         perlinGeneratePerm(rng, &perlin.permX);
         perlinGeneratePerm(rng, &perlin.permY);
@@ -43,7 +45,7 @@ pub const Perlin = struct {
         const j = @floatToInt(i32, @floor(p.y));
         const k = @floatToInt(i32, @floor(p.z));
 
-        var c: [2][2][2]f64 = undefined;
+        var c: [2][2][2]Vec3 = undefined;
 
         var di: usize = 0;
         while (di < 2) : (di += 1) {
@@ -54,12 +56,12 @@ pub const Perlin = struct {
                     const ix = @intCast(usize, i + @intCast(i32, di)) & 255;
                     const iy = @intCast(usize, j + @intCast(i32, dj)) & 255;
                     const iz = @intCast(usize, k + @intCast(i32, dk)) & 255;
-                    c[di][dj][dk] = perlin.randomNoise[perlin.permX[ix] ^ perlin.permY[iy] ^ perlin.permZ[iz]];
+                    c[di][dj][dk] = perlin.randomVec[perlin.permX[ix] ^ perlin.permY[iy] ^ perlin.permZ[iz]];
                 }
             }
         }
 
-        return trilinearInterp(c, u_, v_, w_);
+        return perlinInterp(c, u_, v_, w_);
     }
 
     fn perlinGeneratePerm(rng: Random, p: []usize) void {
@@ -80,7 +82,7 @@ pub const Perlin = struct {
         }
     }
 
-    fn trilinearInterp(c: [2][2][2]f64, u: f64, v: f64, w: f64) f64 {
+    fn perlinInterp(c: [2][2][2]Vec3, u: f64, v: f64, w: f64) f64 {
         var accum: f64 = 0.0;
         var i: usize = 0;
         while (i < 2) : (i += 1) {
@@ -91,11 +93,12 @@ pub const Perlin = struct {
                     const ti = @intToFloat(f64, i);
                     const tj = @intToFloat(f64, j);
                     const tk = @intToFloat(f64, k);
+                    const weight = Vec3{ .x = u - ti, .y = v - tj, .z = w - tk };
                     accum +=
                         (ti * u + (1.0 - ti) * (1.0 - u)) *
                         (tj * v + (1.0 - tj) * (1.0 - v)) *
                         (tk * w + (1.0 - tk) * (1.0 - w)) *
-                        c[i][j][k];
+                        Vec3.dot(c[i][j][k], weight);
                 }
             }
         }
