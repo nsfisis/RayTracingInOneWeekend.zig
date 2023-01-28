@@ -1,3 +1,6 @@
+const std = @import("std");
+const ArrayList = std.ArrayList;
+
 const rand = @import("rand.zig");
 const Random = rand.Random;
 const randomReal01 = rand.randomReal01;
@@ -8,29 +11,38 @@ const Vec3 = @import("vec.zig").Vec3;
 pub const Perlin = struct {
     const POINT_COUNT = 256;
 
-    // TODO: allocate them in heap.
-    randomVec: [POINT_COUNT]Vec3,
-    permX: [POINT_COUNT]usize,
-    permY: [POINT_COUNT]usize,
-    permZ: [POINT_COUNT]usize,
+    randomVec: ArrayList(Vec3),
+    permX: ArrayList(usize),
+    permY: ArrayList(usize),
+    permZ: ArrayList(usize),
 
-    pub fn init(rng: Random) Perlin {
+    pub fn init(allocator: std.mem.Allocator, rng: Random) !Perlin {
         var perlin = Perlin{
-            .randomVec = undefined,
-            .permX = undefined,
-            .permY = undefined,
-            .permZ = undefined,
+            .randomVec = try ArrayList(Vec3).initCapacity(allocator, POINT_COUNT),
+            .permX = try ArrayList(usize).initCapacity(allocator, POINT_COUNT),
+            .permY = try ArrayList(usize).initCapacity(allocator, POINT_COUNT),
+            .permZ = try ArrayList(usize).initCapacity(allocator, POINT_COUNT),
         };
 
         var i: usize = 0;
         while (i < POINT_COUNT) : (i += 1) {
-            perlin.randomVec[i] = Vec3.random(rng, -1, 1).normalized();
+            try perlin.randomVec.append(Vec3.random(rng, -1, 1).normalized());
+            try perlin.permX.append(i);
+            try perlin.permY.append(i);
+            try perlin.permZ.append(i);
         }
-        perlinGeneratePerm(rng, &perlin.permX);
-        perlinGeneratePerm(rng, &perlin.permY);
-        perlinGeneratePerm(rng, &perlin.permZ);
+        permute(rng, perlin.permX.items, POINT_COUNT);
+        permute(rng, perlin.permY.items, POINT_COUNT);
+        permute(rng, perlin.permZ.items, POINT_COUNT);
 
         return perlin;
+    }
+
+    pub fn deinit(perlin: Perlin) void {
+        perlin.permZ.deinit();
+        perlin.permY.deinit();
+        perlin.permX.deinit();
+        perlin.randomVec.deinit();
     }
 
     pub fn noise(perlin: Perlin, p: Point3) f64 {
@@ -56,20 +68,14 @@ pub const Perlin = struct {
                     const ix = @intCast(usize, i + @intCast(i32, di)) & 255;
                     const iy = @intCast(usize, j + @intCast(i32, dj)) & 255;
                     const iz = @intCast(usize, k + @intCast(i32, dk)) & 255;
-                    c[di][dj][dk] = perlin.randomVec[perlin.permX[ix] ^ perlin.permY[iy] ^ perlin.permZ[iz]];
+                    c[di][dj][dk] = perlin.randomVec.items[
+                        perlin.permX.items[ix] ^ perlin.permY.items[iy] ^ perlin.permZ.items[iz]
+                    ];
                 }
             }
         }
 
         return perlinInterp(c, u_, v_, w_);
-    }
-
-    fn perlinGeneratePerm(rng: Random, p: []usize) void {
-        var i: usize = 0;
-        while (i < POINT_COUNT) : (i += 1) {
-            p[i] = i;
-        }
-        permute(rng, p, POINT_COUNT);
     }
 
     fn permute(rng: Random, p: []usize, n: usize) void {

@@ -29,8 +29,8 @@ pub const Texture = union(TextureTag) {
         ) };
     }
 
-    pub fn makeNoise(scale: f64, rng: Random) Texture {
-        return .{ .noise = .{ .perlin = Perlin.init(rng), .scale = scale } };
+    pub fn makeNoise(allocator: std.mem.Allocator, scale: f64, rng: Random) !Texture {
+        return .{ .noise = try NoiseTexture.init(allocator, rng, scale) };
     }
 
     pub fn value(tx: Texture, u: f64, v: f64, p: Vec3) Color {
@@ -84,6 +84,17 @@ pub const CheckerTexture = struct {
 pub const NoiseTexture = struct {
     perlin: Perlin,
     scale: f64,
+
+    fn init(allocator: std.mem.Allocator, rng: Random, scale: f64) !NoiseTexture {
+        return .{
+            .perlin = try Perlin.init(allocator, rng),
+            .scale = scale,
+        };
+    }
+
+    fn deinit(tx: NoiseTexture) void {
+        tx.perlin.deinit();
+    }
 
     fn value(tx: NoiseTexture, u: f64, v: f64, p: Vec3) Color {
         _ = u;
