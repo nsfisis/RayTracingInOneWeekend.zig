@@ -99,6 +99,6 @@ pub const NoiseTexture = struct {
     fn value(tx: NoiseTexture, u: f64, v: f64, p: Vec3) Color {
         _ = u;
         _ = v;
-        return rgb(1, 1, 1).mul(tx.perlin.turb(p.mul(tx.scale), 7));
+        return rgb(1, 1, 1).mul(0.5 * (1.0 + @sin(tx.scale * p.z + 10.0 * tx.perlin.turb(p, 7))));
     }
 };
