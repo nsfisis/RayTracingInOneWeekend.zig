@@ -12,6 +12,9 @@ pub fn build(b: *std.build.Builder) void {
     const mode = b.standardReleaseOptions();
 
     const exe = b.addExecutable("RayTracingInOneWeekend", "src/main.zig");
+
+    exe.addPackagePath("zigimg", "deps/zigimg/zigimg.zig");
+
     exe.setTarget(target);
     exe.setBuildMode(mode);
     exe.install();
