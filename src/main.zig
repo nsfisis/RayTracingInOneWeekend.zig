@@ -244,6 +244,19 @@ fn generateRandomScene(rng: Random, allocator: anytype) !Hittable {
     return .{ .list = .{ .objects = hittable_objects } };
 }
 
+fn generateEarthScene(allocator: anytype) !Hittable {
+    var hittable_objects = ArrayList(Hittable).init(allocator);
+
+    const earth_texture = try Texture.makeImage(allocator, "assets/sekaichizu.png");
+    var earth_surface = try allocator.create(Material);
+
+    earth_surface.* = .{ .diffuse = .{ .albedo = earth_texture } };
+
+    try hittable_objects.append(makeSphere(.{ .x = 0, .y = 0, .z = 0 }, 2, earth_surface));
+
+    return .{ .list = .{ .objects = hittable_objects } };
+}
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
@@ -259,7 +272,7 @@ pub fn main() !void {
     const samples_per_pixel = 50;
     const max_depth = 50;
 
-    const scene = 3;
+    const scene = 4;
 
     // World
     var world: Hittable = undefined;
@@ -281,6 +294,11 @@ pub fn main() !void {
         vFov = 20.0;
     } else if (scene == 3) {
         world = try generateTwoPerlinSpheres(rng, allocator);
+        lookFrom = .{ .x = 13, .y = 2, .z = 3 };
+        lookAt = .{ .x = 0, .y = 0, .z = 0 };
+        vFov = 20.0;
+    } else if (scene == 4) {
+        world = try generateEarthScene(allocator);
         lookFrom = .{ .x = 13, .y = 2, .z = 3 };
         lookAt = .{ .x = 0, .y = 0, .z = 0 };
         vFov = 20.0;
