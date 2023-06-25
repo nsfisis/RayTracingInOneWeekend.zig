@@ -116,24 +116,25 @@ const Camera = struct {
     }
 };
 
-fn rayColor(r: Ray, world: Hittable, rng: Random, depth: u32) Color {
+fn rayColor(r: Ray, background: Color, world: Hittable, rng: Random, depth: u32) Color {
     var rec: HitRecord = undefined;
     if (depth == 0) {
         // If we've exceeded the ray bounce limit, no more ligth is gathered.
         return rgb(0.0, 0.0, 0.0);
     }
-    if (world.hit(r, 0.001, inf, &rec)) {
-        var scattered: Ray = undefined;
-        var attenuation: Color = undefined;
-        if (rec.material.scatter(r, rec, &attenuation, &scattered, rng)) {
-            return attenuation.mulV(rayColor(scattered, world, rng, depth - 1));
-        } else {
-            return rgb(0.0, 0.0, 0.0);
-        }
+    if (!world.hit(r, 0.001, inf, &rec)) {
+        // If the ray hits nothing, return the background color.
+        return background;
     }
-    const unit_dir = r.dir.normalized();
-    const s = 0.5 * (unit_dir.y + 1.0);
-    return rgb(1.0, 1.0, 1.0).mul(1.0 - s).add(rgb(0.5, 0.7, 1.0).mul(s));
+
+    var scattered: Ray = undefined;
+    var attenuation: Color = undefined;
+    const emitted = rec.material.emitted(rec.u, rec.v, rec.p);
+    if (rec.material.scatter(r, rec, &attenuation, &scattered, rng)) {
+        return emitted.add(attenuation.mulV(rayColor(scattered, background, world, rng, depth - 1)));
+    } else {
+        return emitted;
+    }
 }
 
 fn writeColor(out: anytype, c: Color, samples_per_pixel: u32) !void {
@@ -280,25 +281,30 @@ pub fn main() !void {
     var lookAt: Point3 = undefined;
     var vFov: f64 = 40;
     var aperture: f64 = 0;
+    var background: Color = undefined;
 
     if (scene == 1) {
         world = try generateRandomScene(rng, allocator);
+        background = rgb(0.70, 0.80, 1.00);
         lookFrom = .{ .x = 13, .y = 2, .z = 3 };
         lookAt = .{ .x = 0, .y = 0, .z = 0 };
         vFov = 20.0;
         aperture = 0.1;
     } else if (scene == 2) {
         world = try generateTwoSpheres(rng, allocator);
+        background = rgb(0.70, 0.80, 1.00);
         lookFrom = .{ .x = 13, .y = 2, .z = 3 };
         lookAt = .{ .x = 0, .y = 0, .z = 0 };
         vFov = 20.0;
     } else if (scene == 3) {
         world = try generateTwoPerlinSpheres(rng, allocator);
+        background = rgb(0.70, 0.80, 1.00);
         lookFrom = .{ .x = 13, .y = 2, .z = 3 };
         lookAt = .{ .x = 0, .y = 0, .z = 0 };
         vFov = 20.0;
     } else if (scene == 4) {
         world = try generateEarthScene(allocator);
+        background = rgb(0.70, 0.80, 1.00);
         lookFrom = .{ .x = 13, .y = 2, .z = 3 };
         lookAt = .{ .x = 0, .y = 0, .z = 0 };
         vFov = 20.0;
@@ -336,7 +342,7 @@ pub fn main() !void {
                 const u = (@intToFloat(f64, i) + randomReal01(rng)) / (image_width - 1);
                 const v = (@intToFloat(f64, j) + randomReal01(rng)) / (image_height - 1);
                 const r = camera.getRay(rng, u, v);
-                pixelColor = pixelColor.add(rayColor(r, world, rng, max_depth));
+                pixelColor = pixelColor.add(rayColor(r, background, world, rng, max_depth));
             }
             try writeColor(stdout, pixelColor, samples_per_pixel);
         }

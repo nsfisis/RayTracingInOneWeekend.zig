@@ -19,18 +19,30 @@ const MaterialTag = enum {
     diffuse,
     metal,
     dielectric,
+    diffuse_light,
 };
 
 pub const Material = union(MaterialTag) {
     diffuse: DiffuseMaterial,
     metal: MetalMaterial,
     dielectric: DielectricMaterial,
+    diffuse_light: DiffuseLightMaterial,
 
     pub fn scatter(mat: Material, r_in: Ray, record: HitRecord, attenuation: *Color, scattered: *Ray, rng: Random) bool {
         return switch (mat) {
             MaterialTag.diffuse => |diffuse_mat| diffuse_mat.scatter(r_in, record, attenuation, scattered, rng),
             MaterialTag.metal => |metal_mat| metal_mat.scatter(r_in, record, attenuation, scattered, rng),
             MaterialTag.dielectric => |dielectric_mat| dielectric_mat.scatter(r_in, record, attenuation, scattered, rng),
+            MaterialTag.diffuse_light => |diffuse_light_mat| diffuse_light_mat.scatter(r_in, record, attenuation, scattered, rng),
+        };
+    }
+
+    pub fn emitted(mat: Material, u: f64, v: f64, p: Vec3) Color {
+        return switch (mat) {
+            MaterialTag.diffuse => rgb(0, 0, 0),
+            MaterialTag.metal => rgb(0, 0, 0),
+            MaterialTag.dielectric => rgb(0, 0, 0),
+            MaterialTag.diffuse_light => |diffuse_light_mat| diffuse_light_mat.emitted(u, v, p),
         };
     }
 };
@@ -85,6 +97,24 @@ pub const DielectricMaterial = struct {
         const r0 = (1.0 - refraction_idx) / (1.0 + refraction_idx);
         const r1 = r0 * r0;
         return r1 + (1.0 - r1) * math.pow(f64, 1.0 - cos, 5.0);
+    }
+};
+
+pub const DiffuseLightMaterial = struct {
+    emit: Texture,
+
+    fn scatter(mat: DiffuseLightMaterial, r_in: Ray, record: HitRecord, attenuation: *Color, scattered: *Ray, rng: Random) bool {
+        _ = mat;
+        _ = r_in;
+        _ = record;
+        _ = attenuation;
+        _ = scattered;
+        _ = rng;
+        return false;
+    }
+
+    fn emitted(mat: DiffuseLightMaterial, u: f64, v: f64, p: Vec3) Color {
+        return mat.emit.value(u, v, p);
     }
 };
 
