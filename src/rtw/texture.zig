@@ -42,10 +42,10 @@ pub const Texture = union(TextureTag) {
 
     pub fn value(tx: Texture, u: f64, v: f64, p: Vec3) Color {
         return switch (tx) {
-            TextureTag.solid => |solidTx| solidTx.value(u, v, p),
-            TextureTag.checker => |checkerTx| checkerTx.value(u, v, p),
-            TextureTag.noise => |noiseTx| noiseTx.value(u, v, p),
-            TextureTag.image => |imageTx| imageTx.value(u, v, p),
+            TextureTag.solid => |solid_tx| solid_tx.value(u, v, p),
+            TextureTag.checker => |checker_tx| checker_tx.value(u, v, p),
+            TextureTag.noise => |noise_tx| noise_tx.value(u, v, p),
+            TextureTag.image => |image_tx| image_tx.value(u, v, p),
         };
     }
 };
