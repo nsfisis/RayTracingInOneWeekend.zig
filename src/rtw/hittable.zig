@@ -33,6 +33,7 @@ const HittableTag = enum {
     movingSphere,
     list,
     bvhNode,
+    xyRect,
 };
 
 pub const Hittable = union(HittableTag) {
@@ -40,6 +41,7 @@ pub const Hittable = union(HittableTag) {
     movingSphere: MovingSphere,
     list: HittableList,
     bvhNode: BvhNode,
+    xyRect: XyRect,
 
     pub fn hit(h: Hittable, r: Ray, tMin: f64, tMax: f64, record: *HitRecord) bool {
         return switch (h) {
@@ -47,6 +49,7 @@ pub const Hittable = union(HittableTag) {
             HittableTag.movingSphere => |movingSphere| movingSphere.hit(r, tMin, tMax, record),
             HittableTag.list => |list| list.hit(r, tMin, tMax, record),
             HittableTag.bvhNode => |node| node.hit(r, tMin, tMax, record),
+            HittableTag.xyRect => |rect| rect.hit(r, tMin, tMax, record),
         };
     }
 
@@ -56,6 +59,7 @@ pub const Hittable = union(HittableTag) {
             HittableTag.movingSphere => |movingSphere| movingSphere.boudingBox(time0, time1, outputBox),
             HittableTag.list => |list| list.boudingBox(time0, time1, outputBox),
             HittableTag.bvhNode => |node| node.boudingBox(time0, time1, outputBox),
+            HittableTag.xyRect => |rect| rect.boudingBox(time0, time1, outputBox),
         };
     }
 
@@ -65,6 +69,7 @@ pub const Hittable = union(HittableTag) {
             HittableTag.movingSphere => |movingSphere| movingSphere.deinit(allocator),
             HittableTag.list => |list| list.deinit(allocator),
             HittableTag.bvhNode => |node| node.deinit(allocator),
+            HittableTag.xyRect => |rect| rect.deinit(allocator),
         };
     }
 };
@@ -330,6 +335,60 @@ const BvhNode = struct {
 
     fn deinit(node: *const BvhNode, allocator: anytype) void {
         _ = node;
+        _ = allocator;
+    }
+};
+
+const XyRect = struct {
+    x0: f64,
+    x1: f64,
+    y0: f64,
+    y1: f64,
+    k: f64,
+    material: *const Material,
+
+    pub fn hit(rect: XyRect, r: Ray, tMin: f64, tMax: f64, record: *HitRecord) bool {
+        const t = (rect.k - r.origin.z) / r.dir.z;
+        if (t < tMin or t > tMax) {
+            return false;
+        }
+        const x = r.origin.x + t * r.dir.x;
+        const y = r.origin.y + t * r.dir.y;
+        if (x < rect.x0 or x > rect.x1 or y < rect.y0 or y > rect.y1) {
+            return false;
+        }
+
+        record.u = (x - rect.x0) / (rect.x1 - rect.x0);
+        record.v = (y - rect.y0) / (rect.y1 - rect.y0);
+        record.t = t;
+        record.material = rect.material;
+        record.p = r.at(t);
+
+        const outward_normal = Vec3{ .x = 0, .y = 0, .z = 1 };
+        record.front_face = Vec3.dot(outward_normal, r.dir) < 0.0;
+        if (record.front_face) {
+            record.normal = outward_normal;
+        } else {
+            record.normal = outward_normal.mul(-1.0);
+        }
+        return true;
+    }
+
+    pub fn boudingBox(rect: XyRect, time0: f64, time1: f64, outputBox: *Aabb) bool {
+        _ = time0;
+        _ = time1;
+
+        // The bounding box must have non-zero width in each dimension, so pad the Z
+        // dimension a small amount.
+        outputBox.* = .{
+            .min = Point3.init(rect.x0, rect.y0, rect.k - 0.0001),
+            .max = Point3.init(rect.x1, rect.y1, rect.k + 0.0001),
+        };
+        return true;
+    }
+
+    pub fn deinit(rect: *const XyRect, allocator: anytype) void {
+        _ = rect;
         _ = allocator;
     }
 };
