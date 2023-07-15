@@ -66,8 +66,8 @@ const Camera = struct {
     time1: f64,
 
     fn init(
-        lookFrom: Point3,
-        lookAt: Point3,
+        look_from: Point3,
+        look_at: Point3,
         vup: Vec3,
         vfov: f64,
         aspect_ratio: f64,
@@ -81,11 +81,11 @@ const Camera = struct {
         const viewport_height = 2.0 * h;
         const viewport_width = aspect_ratio * viewport_height;
 
-        const w = lookFrom.sub(lookAt).normalized();
+        const w = look_from.sub(look_at).normalized();
         const u = vup.cross(w).normalized();
         const v = w.cross(u);
 
-        const origin = lookFrom;
+        const origin = look_from;
         const horizontal = u.mul(viewport_width * focus_dist);
         const vertical = v.mul(viewport_height * focus_dist);
         const lower_left_corner = origin.sub(horizontal.div(2.0)).sub(vertical.div(2.0)).sub(w.mul(focus_dist));
@@ -300,53 +300,53 @@ pub fn main() !void {
 
     // World
     var world: Hittable = undefined;
-    var lookFrom: Point3 = undefined;
-    var lookAt: Point3 = undefined;
-    var vFov: f64 = 40;
+    var look_from: Point3 = undefined;
+    var look_at: Point3 = undefined;
+    var vfov: f64 = 40;
     var aperture: f64 = 0;
     var background: Color = undefined;
 
     if (scene == 1) {
         world = try generateRandomScene(rng, allocator);
         background = rgb(0.70, 0.80, 1.00);
-        lookFrom = .{ .x = 13, .y = 2, .z = 3 };
-        lookAt = .{ .x = 0, .y = 0, .z = 0 };
-        vFov = 20.0;
+        look_from = .{ .x = 13, .y = 2, .z = 3 };
+        look_at = .{ .x = 0, .y = 0, .z = 0 };
+        vfov = 20.0;
         aperture = 0.1;
     } else if (scene == 2) {
         world = try generateTwoSpheres(rng, allocator);
         background = rgb(0.70, 0.80, 1.00);
-        lookFrom = .{ .x = 13, .y = 2, .z = 3 };
-        lookAt = .{ .x = 0, .y = 0, .z = 0 };
-        vFov = 20.0;
+        look_from = .{ .x = 13, .y = 2, .z = 3 };
+        look_at = .{ .x = 0, .y = 0, .z = 0 };
+        vfov = 20.0;
     } else if (scene == 3) {
         world = try generateTwoPerlinSpheres(rng, allocator);
         background = rgb(0.70, 0.80, 1.00);
-        lookFrom = .{ .x = 13, .y = 2, .z = 3 };
-        lookAt = .{ .x = 0, .y = 0, .z = 0 };
-        vFov = 20.0;
+        look_from = .{ .x = 13, .y = 2, .z = 3 };
+        look_at = .{ .x = 0, .y = 0, .z = 0 };
+        vfov = 20.0;
     } else if (scene == 4) {
         world = try generateEarthScene(allocator);
         background = rgb(0.70, 0.80, 1.00);
-        lookFrom = .{ .x = 13, .y = 2, .z = 3 };
-        lookAt = .{ .x = 0, .y = 0, .z = 0 };
-        vFov = 20.0;
+        look_from = .{ .x = 13, .y = 2, .z = 3 };
+        look_at = .{ .x = 0, .y = 0, .z = 0 };
+        vfov = 20.0;
     } else if (scene == 5) {
         world = try generateSimpleLightScene(rng, allocator);
         background = rgb(0, 0, 0);
-        lookFrom = .{ .x = 26, .y = 3, .z = 6 };
-        lookAt = .{ .x = 0, .y = 2, .z = 0 };
-        vFov = 20.0;
+        look_from = .{ .x = 26, .y = 3, .z = 6 };
+        look_at = .{ .x = 0, .y = 2, .z = 0 };
+        vfov = 20.0;
         samples_per_pixel = 400;
     }
     defer world.deinit(allocator);
 
     // Camera
     const camera = Camera.init(
-        lookFrom,
-        lookAt,
+        look_from,
+        look_at,
         .{ .x = 0, .y = 1, .z = 0 },
-        vFov,
+        vfov,
         aspect_ratio,
         aperture,
         10.0,
