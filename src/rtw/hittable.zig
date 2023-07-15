@@ -34,6 +34,8 @@ const HittableTag = enum {
     list,
     bvhNode,
     xyRect,
+    xzRect,
+    yzRect,
 };
 
 pub const Hittable = union(HittableTag) {
@@ -42,6 +44,8 @@ pub const Hittable = union(HittableTag) {
     list: HittableList,
     bvhNode: BvhNode,
     xyRect: XyRect,
+    xzRect: XzRect,
+    yzRect: YzRect,
 
     pub fn hit(h: Hittable, r: Ray, tMin: f64, tMax: f64, record: *HitRecord) bool {
         return switch (h) {
@@ -50,6 +54,8 @@ pub const Hittable = union(HittableTag) {
             HittableTag.list => |list| list.hit(r, tMin, tMax, record),
             HittableTag.bvhNode => |node| node.hit(r, tMin, tMax, record),
             HittableTag.xyRect => |rect| rect.hit(r, tMin, tMax, record),
+            HittableTag.xzRect => |rect| rect.hit(r, tMin, tMax, record),
+            HittableTag.yzRect => |rect| rect.hit(r, tMin, tMax, record),
         };
     }
 
@@ -60,6 +66,8 @@ pub const Hittable = union(HittableTag) {
             HittableTag.list => |list| list.boudingBox(time0, time1, outputBox),
             HittableTag.bvhNode => |node| node.boudingBox(time0, time1, outputBox),
             HittableTag.xyRect => |rect| rect.boudingBox(time0, time1, outputBox),
+            HittableTag.xzRect => |rect| rect.boudingBox(time0, time1, outputBox),
+            HittableTag.yzRect => |rect| rect.boudingBox(time0, time1, outputBox),
         };
     }
 
@@ -70,6 +78,8 @@ pub const Hittable = union(HittableTag) {
             HittableTag.list => |list| list.deinit(allocator),
             HittableTag.bvhNode => |node| node.deinit(allocator),
             HittableTag.xyRect => |rect| rect.deinit(allocator),
+            HittableTag.xzRect => |rect| rect.deinit(allocator),
+            HittableTag.yzRect => |rect| rect.deinit(allocator),
         };
     }
 };
@@ -388,6 +398,114 @@ const XyRect = struct {
     }
 
     pub fn deinit(rect: *const XyRect, allocator: anytype) void {
+        _ = rect;
+        _ = allocator;
+    }
+};
+
+const XzRect = struct {
+    x0: f64,
+    x1: f64,
+    z0: f64,
+    z1: f64,
+    k: f64,
+    material: *const Material,
+
+    pub fn hit(rect: XzRect, r: Ray, tMin: f64, tMax: f64, record: *HitRecord) bool {
+        const t = (rect.k - r.origin.y) / r.dir.y;
+        if (t < tMin or t > tMax) {
+            return false;
+        }
+        const x = r.origin.x + t * r.dir.x;
+        const z = r.origin.z + t * r.dir.z;
+        if (x < rect.x0 or x > rect.x1 or z < rect.z0 or z > rect.z1) {
+            return false;
+        }
+
+        record.u = (x - rect.x0) / (rect.x1 - rect.x0);
+        record.v = (z - rect.z0) / (rect.z1 - rect.z0);
+        record.t = t;
+        record.material = rect.material;
+        record.p = r.at(t);
+
+        const outward_normal = Vec3{ .x = 0, .y = 1, .z = 0 };
+        record.front_face = Vec3.dot(outward_normal, r.dir) < 0.0;
+        if (record.front_face) {
+            record.normal = outward_normal;
+        } else {
+            record.normal = outward_normal.mul(-1.0);
+        }
+        return true;
+    }
+
+    pub fn boudingBox(rect: XzRect, time0: f64, time1: f64, outputBox: *Aabb) bool {
+        _ = time0;
+        _ = time1;
+
+        // The bounding box must have non-zero width in each dimension, so pad the Y
+        // dimension a small amount.
+        outputBox.* = .{
+            .min = Point3.init(rect.x0, rect.k - 0.0001, rect.z0),
+            .max = Point3.init(rect.x1, rect.k + 0.0001, rect.z1),
+        };
+        return true;
+    }
+
+    pub fn deinit(rect: *const XzRect, allocator: anytype) void {
+        _ = rect;
+        _ = allocator;
+    }
+};
+
+const YzRect = struct {
+    y0: f64,
+    y1: f64,
+    z0: f64,
+    z1: f64,
+    k: f64,
+    material: *const Material,
+
+    pub fn hit(rect: YzRect, r: Ray, tMin: f64, tMax: f64, record: *HitRecord) bool {
+        const t = (rect.k - r.origin.x) / r.dir.x;
+        if (t < tMin or t > tMax) {
+            return false;
+        }
+        const y = r.origin.y + t * r.dir.y;
+        const z = r.origin.z + t * r.dir.z;
+        if (y < rect.y0 or y > rect.y1 or z < rect.z0 or z > rect.z1) {
+            return false;
+        }
+
+        record.u = (y - rect.y0) / (rect.y1 - rect.y0);
+        record.v = (z - rect.z0) / (rect.z1 - rect.z0);
+        record.t = t;
+        record.material = rect.material;
+        record.p = r.at(t);
+
+        const outward_normal = Vec3{ .x = 1, .y = 0, .z = 0 };
+        record.front_face = Vec3.dot(outward_normal, r.dir) < 0.0;
+        if (record.front_face) {
+            record.normal = outward_normal;
+        } else {
+            record.normal = outward_normal.mul(-1.0);
+        }
+        return true;
+    }
+
+    pub fn boudingBox(rect: YzRect, time0: f64, time1: f64, outputBox: *Aabb) bool {
+        _ = time0;
+        _ = time1;
+
+        // The bounding box must have non-zero width in each dimension, so pad the X
+        // dimension a small amount.
+        outputBox.* = .{
+            .min = Point3.init(rect.k - 0.0001, rect.y0, rect.z0),
+            .max = Point3.init(rect.k + 0.0001, rect.y1, rect.z1),
+        };
+        return true;
+    }
+
+    pub fn deinit(rect: *const YzRect, allocator: anytype) void {
         _ = rect;
         _ = allocator;
     }
