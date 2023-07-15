@@ -281,6 +281,33 @@ fn generateSimpleLightScene(rng: Random, allocator: anytype) !Hittable {
     return .{ .list = .{ .objects = hittable_objects } };
 }
 
+fn generateCornellBox(allocator: anytype) !Hittable {
+    var hittable_objects = ArrayList(Hittable).init(allocator);
+
+    var red = try allocator.create(Material);
+    var white = try allocator.create(Material);
+    var white2 = try allocator.create(Material);
+    var white3 = try allocator.create(Material);
+    var green = try allocator.create(Material);
+    var light = try allocator.create(Material);
+
+    red.* = .{ .diffuse = .{ .albedo = Texture.makeSolid(rgb(0.65, 0.05, 0.05)) } };
+    white.* = .{ .diffuse = .{ .albedo = Texture.makeSolid(rgb(0.73, 0.73, 0.73)) } };
+    white2.* = .{ .diffuse = .{ .albedo = Texture.makeSolid(rgb(0.73, 0.73, 0.73)) } };
+    white3.* = .{ .diffuse = .{ .albedo = Texture.makeSolid(rgb(0.73, 0.73, 0.73)) } };
+    green.* = .{ .diffuse = .{ .albedo = Texture.makeSolid(rgb(0.12, 0.45, 0.15)) } };
+    light.* = .{ .diffuse_light = .{ .emit = Texture.makeSolid(rgb(15, 15, 15)) } };
+
+    try hittable_objects.append(.{ .yzRect = .{ .y0 = 0, .y1 = 555, .z0 = 0, .z1 = 555, .k = 555, .material = green } });
+    try hittable_objects.append(.{ .yzRect = .{ .y0 = 0, .y1 = 555, .z0 = 0, .z1 = 555, .k = 0, .material = red } });
+    try hittable_objects.append(.{ .xzRect = .{ .x0 = 213, .x1 = 343, .z0 = 227, .z1 = 332, .k = 554, .material = light } });
+    try hittable_objects.append(.{ .xzRect = .{ .x0 = 0, .x1 = 555, .z0 = 0, .z1 = 555, .k = 0, .material = white } });
+    try hittable_objects.append(.{ .xzRect = .{ .x0 = 0, .x1 = 555, .z0 = 0, .z1 = 555, .k = 555, .material = white2 } });
+    try hittable_objects.append(.{ .xyRect = .{ .x0 = 0, .x1 = 555, .y0 = 0, .y1 = 555, .k = 555, .material = white3 } });
+
+    return .{ .list = .{ .objects = hittable_objects } };
+}
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
@@ -290,13 +317,13 @@ pub fn main() !void {
     var rng = rng_.random();
 
     // Image
-    const aspect_ratio = 3.0 / 2.0;
-    const image_width = 600;
-    const image_height = @floatToInt(comptime_int, @divTrunc(image_width, aspect_ratio));
+    var aspect_ratio: f64 = 3.0 / 2.0;
+    var image_width: u32 = 600;
+    var image_height: u32 = @floatToInt(u32, @divTrunc(@intToFloat(f64, image_width), aspect_ratio));
     const max_depth = 50;
     var samples_per_pixel: u32 = 50;
 
-    const scene = 5;
+    const scene = 6;
 
     // World
     var world: Hittable = undefined;
@@ -338,6 +365,16 @@ pub fn main() !void {
         look_at = .{ .x = 0, .y = 2, .z = 0 };
         vfov = 20.0;
         samples_per_pixel = 400;
+    } else if (scene == 6) {
+        world = try generateCornellBox(allocator);
+        background = rgb(0, 0, 0);
+        look_from = .{ .x = 278, .y = 278, .z = -800 };
+        look_at = .{ .x = 278, .y = 278, .z = 0 };
+        vfov = 40.0;
+        aspect_ratio = 1.0;
+        image_width = 600;
+        image_height = 600;
+        samples_per_pixel = 200;
     }
     defer world.deinit(allocator);
 
@@ -361,7 +398,7 @@ pub fn main() !void {
 
     try stdout.print("P3\n{} {}\n255\n", .{ image_width, image_height });
 
-    var j: i32 = image_height - 1;
+    var j: i32 = @intCast(i32, image_height) - 1;
     while (j >= 0) : (j -= 1) {
         std.debug.print("\rScanlines remaining: {}     ", .{j});
         var i: i32 = 0;
@@ -369,8 +406,8 @@ pub fn main() !void {
             var s: u32 = 0;
             var pixelColor = rgb(0.0, 0.0, 0.0);
             while (s < samples_per_pixel) : (s += 1) {
-                const u = (@intToFloat(f64, i) + randomReal01(rng)) / (image_width - 1);
-                const v = (@intToFloat(f64, j) + randomReal01(rng)) / (image_height - 1);
+                const u = (@intToFloat(f64, i) + randomReal01(rng)) / (@intToFloat(f64, image_width) - 1.0);
+                const v = (@intToFloat(f64, j) + randomReal01(rng)) / (@intToFloat(f64, image_height) - 1.0);
                 const r = camera.getRay(rng, u, v);
                 pixelColor = pixelColor.add(rayColor(r, background, world, rng, max_depth));
             }
