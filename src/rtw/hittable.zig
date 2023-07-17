@@ -17,13 +17,6 @@ const randomReal01 = @import("rand.zig").randomReal01;
 const randomReal = @import("rand.zig").randomReal;
 
 const Material = @import("material.zig").Material;
-const DiffuseMaterial = @import("material.zig").DiffuseMaterial;
-const MetalMaterial = @import("material.zig").MetalMaterial;
-const DielectricMaterial = @import("material.zig").DielectricMaterial;
-
-const Texture = @import("texture.zig").Texture;
-const SolidTexture = @import("texture.zig").SolidTexture;
-const CheckerTexture = @import("texture.zig").CheckerTexture;
 
 const HitRecord = @import("hit_record.zig").HitRecord;
 const Aabb = @import("aabb.zig").Aabb;
@@ -407,8 +400,7 @@ const XyRect = struct {
     }
 
     pub fn deinit(rect: *const XyRect, allocator: anytype) void {
-        _ = rect;
-        _ = allocator;
+        allocator.destroy(rect.material);
     }
 };
 
@@ -461,8 +453,7 @@ const XzRect = struct {
     }
 
     pub fn deinit(rect: *const XzRect, allocator: anytype) void {
-        _ = rect;
-        _ = allocator;
+        allocator.destroy(rect.material);
     }
 };
 
@@ -515,8 +506,7 @@ const YzRect = struct {
     }
 
     pub fn deinit(rect: *const YzRect, allocator: anytype) void {
-        _ = rect;
-        _ = allocator;
+        allocator.destroy(rect.material);
     }
 };
 
@@ -528,12 +518,23 @@ const Box = struct {
     pub fn init(p0: Point3, p1: Point3, material: *const Material, allocator: anytype) !Box {
         var sides = ArrayList(Hittable).init(allocator);
 
+        var mat2 = try allocator.create(Material);
+        var mat3 = try allocator.create(Material);
+        var mat4 = try allocator.create(Material);
+        var mat5 = try allocator.create(Material);
+        var mat6 = try allocator.create(Material);
+        mat2.* = material.*;
+        mat3.* = material.*;
+        mat4.* = material.*;
+        mat5.* = material.*;
+        mat6.* = material.*;
+
         try sides.append(.{ .xyRect = .{ .x0 = p0.x, .x1 = p1.x, .y0 = p0.y, .y1 = p1.y, .k = p1.z, .material = material } });
-        try sides.append(.{ .xyRect = .{ .x0 = p0.x, .x1 = p1.x, .y0 = p0.y, .y1 = p1.y, .k = p0.z, .material = material } });
-        try sides.append(.{ .xzRect = .{ .x0 = p0.x, .x1 = p1.x, .z0 = p0.z, .z1 = p1.z, .k = p1.y, .material = material } });
-        try sides.append(.{ .xzRect = .{ .x0 = p0.x, .x1 = p1.x, .z0 = p0.z, .z1 = p1.z, .k = p0.y, .material = material } });
-        try sides.append(.{ .yzRect = .{ .y0 = p0.y, .y1 = p1.y, .z0 = p0.z, .z1 = p1.z, .k = p1.x, .material = material } });
-        try sides.append(.{ .yzRect = .{ .y0 = p0.y, .y1 = p1.y, .z0 = p0.z, .z1 = p1.z, .k = p0.x, .material = material } });
+        try sides.append(.{ .xyRect = .{ .x0 = p0.x, .x1 = p1.x, .y0 = p0.y, .y1 = p1.y, .k = p0.z, .material = mat2 } });
+        try sides.append(.{ .xzRect = .{ .x0 = p0.x, .x1 = p1.x, .z0 = p0.z, .z1 = p1.z, .k = p1.y, .material = mat3 } });
+        try sides.append(.{ .xzRect = .{ .x0 = p0.x, .x1 = p1.x, .z0 = p0.z, .z1 = p1.z, .k = p0.y, .material = mat4 } });
+        try sides.append(.{ .yzRect = .{ .y0 = p0.y, .y1 = p1.y, .z0 = p0.z, .z1 = p1.z, .k = p1.x, .material = mat5 } });
+        try sides.append(.{ .yzRect = .{ .y0 = p0.y, .y1 = p1.y, .z0 = p0.z, .z1 = p1.z, .k = p0.x, .material = mat6 } });
 
         return .{
             .min = p0,
