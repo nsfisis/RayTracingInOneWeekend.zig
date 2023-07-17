@@ -28,9 +28,6 @@ const SolidTexture = rtw.texture.SolidTexture;
 const CheckerTexture = rtw.texture.CheckerTexture;
 
 const Hittable = rtw.hittable.Hittable;
-const Sphere = rtw.hittable.Sphere;
-const MovingSphere = rtw.hittable.MovingSphere;
-const HittableList = rtw.hittable.HittableList;
 const BvhNode = rtw.hittable.BvhNode;
 
 const Aabb = rtw.aabb.Aabb;
@@ -288,6 +285,8 @@ fn generateCornellBox(allocator: anytype) !Hittable {
     var white = try allocator.create(Material);
     var white2 = try allocator.create(Material);
     var white3 = try allocator.create(Material);
+    var white4 = try allocator.create(Material);
+    var white5 = try allocator.create(Material);
     var green = try allocator.create(Material);
     var light = try allocator.create(Material);
 
@@ -295,6 +294,8 @@ fn generateCornellBox(allocator: anytype) !Hittable {
     white.* = .{ .diffuse = .{ .albedo = Texture.makeSolid(rgb(0.73, 0.73, 0.73)) } };
     white2.* = .{ .diffuse = .{ .albedo = Texture.makeSolid(rgb(0.73, 0.73, 0.73)) } };
     white3.* = .{ .diffuse = .{ .albedo = Texture.makeSolid(rgb(0.73, 0.73, 0.73)) } };
+    white4.* = .{ .diffuse = .{ .albedo = Texture.makeSolid(rgb(0.73, 0.73, 0.73)) } };
+    white5.* = .{ .diffuse = .{ .albedo = Texture.makeSolid(rgb(0.73, 0.73, 0.73)) } };
     green.* = .{ .diffuse = .{ .albedo = Texture.makeSolid(rgb(0.12, 0.45, 0.15)) } };
     light.* = .{ .diffuse_light = .{ .emit = Texture.makeSolid(rgb(15, 15, 15)) } };
 
@@ -304,6 +305,9 @@ fn generateCornellBox(allocator: anytype) !Hittable {
     try hittable_objects.append(.{ .xzRect = .{ .x0 = 0, .x1 = 555, .z0 = 0, .z1 = 555, .k = 0, .material = white } });
     try hittable_objects.append(.{ .xzRect = .{ .x0 = 0, .x1 = 555, .z0 = 0, .z1 = 555, .k = 555, .material = white2 } });
     try hittable_objects.append(.{ .xyRect = .{ .x0 = 0, .x1 = 555, .y0 = 0, .y1 = 555, .k = 555, .material = white3 } });
+
+    try hittable_objects.append(try Hittable.makeBox(.{ .x = 130, .y = 0, .z = 65 }, .{ .x = 295, .y = 165, .z = 230 }, white4, allocator));
+    try hittable_objects.append(try Hittable.makeBox(.{ .x = 265, .y = 0, .z = 295 }, .{ .x = 430, .y = 330, .z = 460 }, white5, allocator));
 
     return .{ .list = .{ .objects = hittable_objects } };
 }

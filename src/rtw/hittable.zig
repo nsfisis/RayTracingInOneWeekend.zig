@@ -36,6 +36,7 @@ const HittableTag = enum {
     xyRect,
     xzRect,
     yzRect,
+    box,
 };
 
 pub const Hittable = union(HittableTag) {
@@ -46,6 +47,11 @@ pub const Hittable = union(HittableTag) {
     xyRect: XyRect,
     xzRect: XzRect,
     yzRect: YzRect,
+    box: Box,
+
+    pub fn makeBox(p0: Point3, p1: Point3, material: *const Material, allocator: anytype) !Hittable {
+        return .{ .box = try Box.init(p0, p1, material, allocator) };
+    }
 
     pub fn hit(h: Hittable, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
         return switch (h) {
@@ -56,6 +62,7 @@ pub const Hittable = union(HittableTag) {
             HittableTag.xyRect => |rect| rect.hit(r, t_min, t_max, record),
             HittableTag.xzRect => |rect| rect.hit(r, t_min, t_max, record),
             HittableTag.yzRect => |rect| rect.hit(r, t_min, t_max, record),
+            HittableTag.box => |box| box.hit(r, t_min, t_max, record),
         };
     }
 
@@ -68,6 +75,7 @@ pub const Hittable = union(HittableTag) {
             HittableTag.xyRect => |rect| rect.boudingBox(time0, time1, output_box),
             HittableTag.xzRect => |rect| rect.boudingBox(time0, time1, output_box),
             HittableTag.yzRect => |rect| rect.boudingBox(time0, time1, output_box),
+            HittableTag.box => |box| box.boudingBox(time0, time1, output_box),
         };
     }
 
@@ -80,6 +88,7 @@ pub const Hittable = union(HittableTag) {
             HittableTag.xyRect => |rect| rect.deinit(allocator),
             HittableTag.xzRect => |rect| rect.deinit(allocator),
             HittableTag.yzRect => |rect| rect.deinit(allocator),
+            HittableTag.box => |box| box.deinit(allocator),
         };
     }
 };
@@ -508,5 +517,48 @@ const YzRect = struct {
     pub fn deinit(rect: *const YzRect, allocator: anytype) void {
         _ = rect;
         _ = allocator;
+    }
+};
+
+const Box = struct {
+    min: Point3,
+    max: Point3,
+    sides: HittableList,
+
+    pub fn init(p0: Point3, p1: Point3, material: *const Material, allocator: anytype) !Box {
+        var sides = ArrayList(Hittable).init(allocator);
+
+        try sides.append(.{ .xyRect = .{ .x0 = p0.x, .x1 = p1.x, .y0 = p0.y, .y1 = p1.y, .k = p1.z, .material = material } });
+        try sides.append(.{ .xyRect = .{ .x0 = p0.x, .x1 = p1.x, .y0 = p0.y, .y1 = p1.y, .k = p0.z, .material = material } });
+        try sides.append(.{ .xzRect = .{ .x0 = p0.x, .x1 = p1.x, .z0 = p0.z, .z1 = p1.z, .k = p1.y, .material = material } });
+        try sides.append(.{ .xzRect = .{ .x0 = p0.x, .x1 = p1.x, .z0 = p0.z, .z1 = p1.z, .k = p0.y, .material = material } });
+        try sides.append(.{ .yzRect = .{ .y0 = p0.y, .y1 = p1.y, .z0 = p0.z, .z1 = p1.z, .k = p1.x, .material = material } });
+        try sides.append(.{ .yzRect = .{ .y0 = p0.y, .y1 = p1.y, .z0 = p0.z, .z1 = p1.z, .k = p0.x, .material = material } });
+
+        return .{
+            .min = p0,
+            .max = p1,
+            .sides = .{
+                .objects = sides,
+            },
+        };
+    }
+
+    pub fn hit(box: Box, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
+        return box.sides.hit(r, t_min, t_max, record);
+    }
+
+    pub fn boudingBox(box: Box, time0: f64, time1: f64, output_box: *Aabb) bool {
+        _ = time0;
+        _ = time1;
+        output_box.* = .{
+            .min = box.min,
+            .max = box.max,
+        };
+        return true;
+    }
+
+    pub fn deinit(box: *const Box, allocator: anytype) void {
+        box.sides.deinit(allocator);
     }
 };
