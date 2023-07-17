@@ -47,27 +47,27 @@ pub const Hittable = union(HittableTag) {
     xzRect: XzRect,
     yzRect: YzRect,
 
-    pub fn hit(h: Hittable, r: Ray, tMin: f64, tMax: f64, record: *HitRecord) bool {
+    pub fn hit(h: Hittable, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
         return switch (h) {
-            HittableTag.sphere => |sphere| sphere.hit(r, tMin, tMax, record),
-            HittableTag.movingSphere => |movingSphere| movingSphere.hit(r, tMin, tMax, record),
-            HittableTag.list => |list| list.hit(r, tMin, tMax, record),
-            HittableTag.bvhNode => |node| node.hit(r, tMin, tMax, record),
-            HittableTag.xyRect => |rect| rect.hit(r, tMin, tMax, record),
-            HittableTag.xzRect => |rect| rect.hit(r, tMin, tMax, record),
-            HittableTag.yzRect => |rect| rect.hit(r, tMin, tMax, record),
+            HittableTag.sphere => |sphere| sphere.hit(r, t_min, t_max, record),
+            HittableTag.movingSphere => |movingSphere| movingSphere.hit(r, t_min, t_max, record),
+            HittableTag.list => |list| list.hit(r, t_min, t_max, record),
+            HittableTag.bvhNode => |node| node.hit(r, t_min, t_max, record),
+            HittableTag.xyRect => |rect| rect.hit(r, t_min, t_max, record),
+            HittableTag.xzRect => |rect| rect.hit(r, t_min, t_max, record),
+            HittableTag.yzRect => |rect| rect.hit(r, t_min, t_max, record),
         };
     }
 
-    fn boudingBox(h: Hittable, time0: f64, time1: f64, outputBox: *Aabb) bool {
+    fn boudingBox(h: Hittable, time0: f64, time1: f64, output_box: *Aabb) bool {
         return switch (h.*) {
-            HittableTag.sphere => |sphere| sphere.boudingBox(time0, time1, outputBox),
-            HittableTag.movingSphere => |movingSphere| movingSphere.boudingBox(time0, time1, outputBox),
-            HittableTag.list => |list| list.boudingBox(time0, time1, outputBox),
-            HittableTag.bvhNode => |node| node.boudingBox(time0, time1, outputBox),
-            HittableTag.xyRect => |rect| rect.boudingBox(time0, time1, outputBox),
-            HittableTag.xzRect => |rect| rect.boudingBox(time0, time1, outputBox),
-            HittableTag.yzRect => |rect| rect.boudingBox(time0, time1, outputBox),
+            HittableTag.sphere => |sphere| sphere.boudingBox(time0, time1, output_box),
+            HittableTag.movingSphere => |movingSphere| movingSphere.boudingBox(time0, time1, output_box),
+            HittableTag.list => |list| list.boudingBox(time0, time1, output_box),
+            HittableTag.bvhNode => |node| node.boudingBox(time0, time1, output_box),
+            HittableTag.xyRect => |rect| rect.boudingBox(time0, time1, output_box),
+            HittableTag.xzRect => |rect| rect.boudingBox(time0, time1, output_box),
+            HittableTag.yzRect => |rect| rect.boudingBox(time0, time1, output_box),
         };
     }
 
@@ -89,7 +89,7 @@ const Sphere = struct {
     radius: f64,
     material: *const Material,
 
-    fn hit(sphere: Sphere, r: Ray, tMin: f64, tMax: f64, record: *HitRecord) bool {
+    fn hit(sphere: Sphere, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
         const oc = r.origin.sub(sphere.center);
         const a = r.dir.normSquared();
         const half_b = Vec3.dot(oc, r.dir);
@@ -104,9 +104,9 @@ const Sphere = struct {
 
         // Find the nearest root that lies in the acceptable range.
         var root = (-half_b - sqrtd) / a;
-        if (root < tMin or tMax < root) {
+        if (root < t_min or t_max < root) {
             root = (-half_b + sqrtd) / a;
-            if (root < tMin or tMax < root) {
+            if (root < t_min or t_max < root) {
                 // out of range
                 return false;
             }
@@ -127,12 +127,12 @@ const Sphere = struct {
         return true;
     }
 
-    fn boudingBox(sphere: Sphere, time0: f64, time1: f64, outputBox: *Aabb) bool {
+    fn boudingBox(sphere: Sphere, time0: f64, time1: f64, output_box: *Aabb) bool {
         _ = time0;
         _ = time1;
         const o = sphere.center;
         const r = sphere.radius;
-        outputBox.* = .{
+        output_box.* = .{
             .min = o.sub(.{ .x = r, .y = r, .z = r }),
             .max = o.add(.{ .x = r, .y = r, .z = r }),
         };
@@ -159,7 +159,7 @@ const MovingSphere = struct {
     radius: f64,
     material: *const Material,
 
-    fn hit(sphere: MovingSphere, r: Ray, tMin: f64, tMax: f64, record: *HitRecord) bool {
+    fn hit(sphere: MovingSphere, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
         const center_ = sphere.center(r.time);
         const oc = r.origin.sub(center_);
         const a = r.dir.normSquared();
@@ -175,9 +175,9 @@ const MovingSphere = struct {
 
         // Find the nearest root that lies in the acceptable range.
         var root = (-half_b - sqrtd) / a;
-        if (root < tMin or tMax < root) {
+        if (root < t_min or t_max < root) {
             root = (-half_b + sqrtd) / a;
-            if (root < tMin or tMax < root) {
+            if (root < t_min or t_max < root) {
                 // out of range
                 return false;
             }
@@ -197,7 +197,7 @@ const MovingSphere = struct {
         return true;
     }
 
-    fn boudingBox(sphere: MovingSphere, time0: f64, time1: f64, outputBox: *Aabb) bool {
+    fn boudingBox(sphere: MovingSphere, time0: f64, time1: f64, output_box: *Aabb) bool {
         const o0 = sphere.center(time0);
         const o1 = sphere.center(time1);
         const r = sphere.radius;
@@ -209,7 +209,7 @@ const MovingSphere = struct {
             .min = o1.sub(.{ .x = r, .y = r, .z = r }),
             .max = o1.add(.{ .x = r, .y = r, .z = r }),
         };
-        outputBox.* = Aabb.surroundingBox(box0, box1);
+        output_box.* = Aabb.surroundingBox(box0, box1);
         return true;
     }
 
@@ -225,13 +225,13 @@ const MovingSphere = struct {
 const HittableList = struct {
     objects: ArrayList(Hittable),
 
-    fn hit(list: HittableList, r: Ray, tMin: f64, tMax: f64, record: *HitRecord) bool {
+    fn hit(list: HittableList, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
         var hit_anything = false;
-        var closest_so_far = tMax;
+        var closest_so_far = t_max;
 
         for (list.objects.items) |object| {
             var rec: HitRecord = undefined;
-            if (object.hit(r, tMin, closest_so_far, &rec)) {
+            if (object.hit(r, t_min, closest_so_far, &rec)) {
                 hit_anything = true;
                 closest_so_far = rec.t;
                 record.* = rec;
@@ -240,18 +240,18 @@ const HittableList = struct {
         return hit_anything;
     }
 
-    fn boudingBox(list: HittableList, time0: f64, time1: f64, outputBox: *Aabb) bool {
+    fn boudingBox(list: HittableList, time0: f64, time1: f64, output_box: *Aabb) bool {
         if (list.objects.items.len == 0) {
             return false;
         }
-        var firstBox = true;
-        var tmpBox: Aabb = undefined;
+        var first_box = true;
+        var tmp_box: Aabb = undefined;
         for (list.objects.items) |object| {
-            if (!object.boudingBox(time0, time1, tmpBox)) {
+            if (!object.boudingBox(time0, time1, tmp_box)) {
                 return false;
             }
-            outputBox = if (firstBox) tmpBox else Aabb.surroundingBox(outputBox, tmpBox);
-            firstBox = false;
+            output_box = if (first_box) tmp_box else Aabb.surroundingBox(output_box, tmp_box);
+            first_box = false;
         }
         return true;
     }
@@ -282,11 +282,11 @@ const BvhNode = struct {
         var objects_ = objects;
         const axis = randomInt(u8, 0, 3);
 
-        const objectSpan = end - start;
-        if (objectSpan == 1) {
+        const object_span = end - start;
+        if (object_span == 1) {
             left = objects.items[start];
             right = objects.items[start];
-        } else if (objectSpan == 2) {
+        } else if (object_span == 2) {
             if (BvhNode.boxCompare(axis, objects[start], objects[start + 1])) {
                 left = objects[start];
                 right = objects[start + 1];
@@ -296,22 +296,22 @@ const BvhNode = struct {
             }
         } else {
             std.sort.sort(*Hittable, objects_, axis, BvhNode.boxCompare);
-            const mid = start + objectSpan / 2;
+            const mid = start + object_span / 2;
             left.* = .{ .bvhNode = BvhNode.init(objects, start, mid, time0, time1) };
             right.* = .{ .bvhNode = BvhNode.init(objects, mid, end, time0, time1) };
         }
 
-        var boxLeft: Aabb = undefined;
-        var boxRight: Aabb = undefined;
+        var box_left: Aabb = undefined;
+        var box_right: Aabb = undefined;
 
-        if (!left.boudingBox(time0, time1, boxLeft) || !right.boudingBox(time0, time1, boxRight)) {
+        if (!left.boudingBox(time0, time1, box_left) || !right.boudingBox(time0, time1, box_right)) {
             // ERROR
         }
 
         return .{
             .left = left,
             .right = right,
-            .box = Aabb.surroundingBox(boxLeft, boxRight),
+            .box = Aabb.surroundingBox(box_left, box_right),
         };
     }
 
@@ -325,21 +325,21 @@ const BvhNode = struct {
         }
     }
 
-    fn hit(node: BvhNode, r: Ray, tMin: f64, tMax: f64, record: *HitRecord) bool {
-        if (!node.box.hit(r, tMin, tMax)) {
+    fn hit(node: BvhNode, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
+        if (!node.box.hit(r, t_min, t_max)) {
             return false;
         }
 
-        const hitLeft = node.left.hit(r, tMin, tMax, record);
-        const hitRight = node.right.hit(r, tMin, if (hitLeft) record.t else tMax, record);
+        const hit_left = node.left.hit(r, t_min, t_max, record);
+        const hit_right = node.right.hit(r, t_min, if (hit_left) record.t else t_max, record);
 
-        return hitLeft or hitRight;
+        return hit_left or hit_right;
     }
 
-    fn boudingBox(node: BvhNode, time0: f64, time1: f64, outputBox: *Aabb) bool {
+    fn boudingBox(node: BvhNode, time0: f64, time1: f64, output_box: *Aabb) bool {
         _ = time0;
         _ = time1;
-        outputBox.* = node.box;
+        output_box.* = node.box;
         return true;
     }
 
@@ -357,9 +357,9 @@ const XyRect = struct {
     k: f64,
     material: *const Material,
 
-    pub fn hit(rect: XyRect, r: Ray, tMin: f64, tMax: f64, record: *HitRecord) bool {
+    pub fn hit(rect: XyRect, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
         const t = (rect.k - r.origin.z) / r.dir.z;
-        if (t < tMin or t > tMax) {
+        if (t < t_min or t > t_max) {
             return false;
         }
         const x = r.origin.x + t * r.dir.x;
@@ -384,13 +384,13 @@ const XyRect = struct {
         return true;
     }
 
-    pub fn boudingBox(rect: XyRect, time0: f64, time1: f64, outputBox: *Aabb) bool {
+    pub fn boudingBox(rect: XyRect, time0: f64, time1: f64, output_box: *Aabb) bool {
         _ = time0;
         _ = time1;
 
         // The bounding box must have non-zero width in each dimension, so pad the Z
         // dimension a small amount.
-        outputBox.* = .{
+        output_box.* = .{
             .min = Point3.init(rect.x0, rect.y0, rect.k - 0.0001),
             .max = Point3.init(rect.x1, rect.y1, rect.k + 0.0001),
         };
@@ -411,9 +411,9 @@ const XzRect = struct {
     k: f64,
     material: *const Material,
 
-    pub fn hit(rect: XzRect, r: Ray, tMin: f64, tMax: f64, record: *HitRecord) bool {
+    pub fn hit(rect: XzRect, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
         const t = (rect.k - r.origin.y) / r.dir.y;
-        if (t < tMin or t > tMax) {
+        if (t < t_min or t > t_max) {
             return false;
         }
         const x = r.origin.x + t * r.dir.x;
@@ -438,13 +438,13 @@ const XzRect = struct {
         return true;
     }
 
-    pub fn boudingBox(rect: XzRect, time0: f64, time1: f64, outputBox: *Aabb) bool {
+    pub fn boudingBox(rect: XzRect, time0: f64, time1: f64, output_box: *Aabb) bool {
         _ = time0;
         _ = time1;
 
         // The bounding box must have non-zero width in each dimension, so pad the Y
         // dimension a small amount.
-        outputBox.* = .{
+        output_box.* = .{
             .min = Point3.init(rect.x0, rect.k - 0.0001, rect.z0),
             .max = Point3.init(rect.x1, rect.k + 0.0001, rect.z1),
         };
@@ -465,9 +465,9 @@ const YzRect = struct {
     k: f64,
     material: *const Material,
 
-    pub fn hit(rect: YzRect, r: Ray, tMin: f64, tMax: f64, record: *HitRecord) bool {
+    pub fn hit(rect: YzRect, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
         const t = (rect.k - r.origin.x) / r.dir.x;
-        if (t < tMin or t > tMax) {
+        if (t < t_min or t > t_max) {
             return false;
         }
         const y = r.origin.y + t * r.dir.y;
@@ -492,13 +492,13 @@ const YzRect = struct {
         return true;
     }
 
-    pub fn boudingBox(rect: YzRect, time0: f64, time1: f64, outputBox: *Aabb) bool {
+    pub fn boudingBox(rect: YzRect, time0: f64, time1: f64, output_box: *Aabb) bool {
         _ = time0;
         _ = time1;
 
         // The bounding box must have non-zero width in each dimension, so pad the X
         // dimension a small amount.
-        outputBox.* = .{
+        output_box.* = .{
             .min = Point3.init(rect.k - 0.0001, rect.y0, rect.z0),
             .max = Point3.init(rect.k + 0.0001, rect.y1, rect.z1),
         };

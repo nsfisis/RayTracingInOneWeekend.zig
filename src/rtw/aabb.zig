@@ -5,17 +5,17 @@ pub const Aabb = struct {
     min: Point3,
     max: Point3,
 
-    pub fn hit(aabb: Aabb, r: Ray, tMin: f64, tMax: f64) bool {
-        var tMin_ = tMin;
-        var tMax_ = tMax;
+    pub fn hit(aabb: Aabb, r: Ray, t_min: f64, t_max: f64) bool {
+        var t_min_ = t_min;
+        var t_max_ = t_max;
         {
             const s0 = (aabb.min.x - r.origin.x) / r.dir.x;
             const s1 = (aabb.max.x - r.origin.x) / r.dir.x;
             const t0 = @min(s0, s1);
             const t1 = @max(s0, s1);
-            tMin_ = @max(t0, tMin_);
-            tMax_ = @min(t1, tMax_);
-            if (tMax_ <= tMin_) {
+            t_min_ = @max(t0, t_min_);
+            t_max_ = @min(t1, t_max_);
+            if (t_max_ <= t_min_) {
                 return false;
             }
         }
@@ -24,9 +24,9 @@ pub const Aabb = struct {
             const s1 = (aabb.max.y - r.origin.y) / r.dir.y;
             const t0 = @min(s0, s1);
             const t1 = @max(s0, s1);
-            tMin_ = @max(t0, tMin_);
-            tMax_ = @min(t1, tMax_);
-            if (tMax_ <= tMin_) {
+            t_min_ = @max(t0, t_min_);
+            t_max_ = @min(t1, t_max_);
+            if (t_max_ <= t_min_) {
                 return false;
             }
         }
@@ -35,9 +35,9 @@ pub const Aabb = struct {
             const s1 = (aabb.max.z - r.origin.z) / r.dir.z;
             const t0 = @min(s0, s1);
             const t1 = @max(s0, s1);
-            tMin_ = @max(t0, tMin_);
-            tMax_ = @min(t1, tMax_);
-            if (tMax_ <= tMin_) {
+            t_min_ = @max(t0, t_min_);
+            t_max_ = @min(t1, t_max_);
+            if (t_max_ <= t_min_) {
                 return false;
             }
         }
