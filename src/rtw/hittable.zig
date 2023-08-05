@@ -4,6 +4,8 @@ const math = std.math;
 const pi = math.pi;
 const ArrayList = std.ArrayList;
 
+const Rc = @import("../rc.zig").Rc;
+
 const Ray = @import("ray.zig").Ray;
 const Vec3 = @import("vec.zig").Vec3;
 const Point3 = @import("vec.zig").Point3;
@@ -42,7 +44,7 @@ pub const Hittable = union(HittableTag) {
     yzRect: YzRect,
     box: Box,
 
-    pub fn makeBox(p0: Point3, p1: Point3, material: *const Material, allocator: anytype) !Hittable {
+    pub fn makeBox(p0: Point3, p1: Point3, material: Rc(Material), allocator: anytype) !Hittable {
         return .{ .box = try Box.init(p0, p1, material, allocator) };
     }
 
@@ -72,16 +74,16 @@ pub const Hittable = union(HittableTag) {
         };
     }
 
-    pub fn deinit(h: *const Hittable, allocator: anytype) void {
+    pub fn deinit(h: *const Hittable) void {
         return switch (h.*) {
-            HittableTag.sphere => |sphere| sphere.deinit(allocator),
-            HittableTag.movingSphere => |movingSphere| movingSphere.deinit(allocator),
-            HittableTag.list => |list| list.deinit(allocator),
-            HittableTag.bvhNode => |node| node.deinit(allocator),
-            HittableTag.xyRect => |rect| rect.deinit(allocator),
-            HittableTag.xzRect => |rect| rect.deinit(allocator),
-            HittableTag.yzRect => |rect| rect.deinit(allocator),
-            HittableTag.box => |box| box.deinit(allocator),
+            HittableTag.sphere => |sphere| sphere.deinit(),
+            HittableTag.movingSphere => |movingSphere| movingSphere.deinit(),
+            HittableTag.list => |list| list.deinit(),
+            HittableTag.bvhNode => |node| node.deinit(),
+            HittableTag.xyRect => |rect| rect.deinit(),
+            HittableTag.xzRect => |rect| rect.deinit(),
+            HittableTag.yzRect => |rect| rect.deinit(),
+            HittableTag.box => |box| box.deinit(),
         };
     }
 };
@@ -89,7 +91,7 @@ pub const Hittable = union(HittableTag) {
 const Sphere = struct {
     center: Point3,
     radius: f64,
-    material: *const Material,
+    material: Rc(Material),
 
     fn hit(sphere: Sphere, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
         const oc = r.origin.sub(sphere.center);
@@ -124,7 +126,7 @@ const Sphere = struct {
             record.normal = outward_normal.mul(-1.0);
         }
         Sphere.getSphereUv(outward_normal, &record.u, &record.v);
-        record.material = sphere.material;
+        record.material = sphere.material.get();
 
         return true;
     }
@@ -148,8 +150,8 @@ const Sphere = struct {
         v.* = theta / pi;
     }
 
-    fn deinit(sphere: *const Sphere, allocator: anytype) void {
-        allocator.destroy(sphere.material);
+    fn deinit(sphere: *const Sphere) void {
+        sphere.material.deinit();
     }
 };
 
@@ -159,7 +161,7 @@ const MovingSphere = struct {
     time0: f64,
     time1: f64,
     radius: f64,
-    material: *const Material,
+    material: Rc(Material),
 
     fn hit(sphere: MovingSphere, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
         const center_ = sphere.center(r.time);
@@ -194,7 +196,7 @@ const MovingSphere = struct {
         } else {
             record.normal = outward_normal.mul(-1.0);
         }
-        record.material = sphere.material;
+        record.material = sphere.material.get();
 
         return true;
     }
@@ -219,8 +221,8 @@ const MovingSphere = struct {
         return sphere.center0.add(sphere.center1.sub(sphere.center0).mul((t - sphere.time0) / (sphere.time1 - sphere.time0)));
     }
 
-    fn deinit(sphere: *const MovingSphere, allocator: anytype) void {
-        allocator.destroy(sphere.material);
+    fn deinit(sphere: *const MovingSphere) void {
+        sphere.material.deinit();
     }
 };
 
@@ -258,9 +260,9 @@ const HittableList = struct {
         return true;
     }
 
-    fn deinit(list: *const HittableList, allocator: anytype) void {
+    fn deinit(list: *const HittableList) void {
         for (list.objects.items) |object| {
-            object.deinit(allocator);
+            object.deinit();
         }
         list.objects.deinit();
     }
@@ -345,9 +347,9 @@ const BvhNode = struct {
         return true;
     }
 
-    fn deinit(node: *const BvhNode, allocator: anytype) void {
-        _ = node;
-        _ = allocator;
+    fn deinit(node: *const BvhNode) void {
+        node.left.deinit();
+        node.right.deinit();
     }
 };
 
@@ -357,7 +359,7 @@ const XyRect = struct {
     y0: f64,
     y1: f64,
     k: f64,
-    material: *const Material,
+    material: Rc(Material),
 
     pub fn hit(rect: XyRect, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
         const t = (rect.k - r.origin.z) / r.dir.z;
@@ -373,7 +375,7 @@ const XyRect = struct {
         record.u = (x - rect.x0) / (rect.x1 - rect.x0);
         record.v = (y - rect.y0) / (rect.y1 - rect.y0);
         record.t = t;
-        record.material = rect.material;
+        record.material = rect.material.get();
         record.p = r.at(t);
 
         const outward_normal = Vec3{ .x = 0, .y = 0, .z = 1 };
@@ -399,8 +401,8 @@ const XyRect = struct {
         return true;
     }
 
-    pub fn deinit(rect: *const XyRect, allocator: anytype) void {
-        allocator.destroy(rect.material);
+    pub fn deinit(rect: *const XyRect) void {
+        rect.material.deinit();
     }
 };
 
@@ -410,7 +412,7 @@ const XzRect = struct {
     z0: f64,
     z1: f64,
     k: f64,
-    material: *const Material,
+    material: Rc(Material),
 
     pub fn hit(rect: XzRect, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
         const t = (rect.k - r.origin.y) / r.dir.y;
@@ -426,7 +428,7 @@ const XzRect = struct {
         record.u = (x - rect.x0) / (rect.x1 - rect.x0);
         record.v = (z - rect.z0) / (rect.z1 - rect.z0);
         record.t = t;
-        record.material = rect.material;
+        record.material = rect.material.get();
         record.p = r.at(t);
 
         const outward_normal = Vec3{ .x = 0, .y = 1, .z = 0 };
@@ -452,8 +454,8 @@ const XzRect = struct {
         return true;
     }
 
-    pub fn deinit(rect: *const XzRect, allocator: anytype) void {
-        allocator.destroy(rect.material);
+    pub fn deinit(rect: *const XzRect) void {
+        rect.material.deinit();
     }
 };
 
@@ -463,7 +465,7 @@ const YzRect = struct {
     z0: f64,
     z1: f64,
     k: f64,
-    material: *const Material,
+    material: Rc(Material),
 
     pub fn hit(rect: YzRect, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
         const t = (rect.k - r.origin.x) / r.dir.x;
@@ -479,7 +481,7 @@ const YzRect = struct {
         record.u = (y - rect.y0) / (rect.y1 - rect.y0);
         record.v = (z - rect.z0) / (rect.z1 - rect.z0);
         record.t = t;
-        record.material = rect.material;
+        record.material = rect.material.get();
         record.p = r.at(t);
 
         const outward_normal = Vec3{ .x = 1, .y = 0, .z = 0 };
@@ -505,8 +507,8 @@ const YzRect = struct {
         return true;
     }
 
-    pub fn deinit(rect: *const YzRect, allocator: anytype) void {
-        allocator.destroy(rect.material);
+    pub fn deinit(rect: *const YzRect) void {
+        rect.material.deinit();
     }
 };
 
@@ -515,26 +517,15 @@ const Box = struct {
     max: Point3,
     sides: HittableList,
 
-    pub fn init(p0: Point3, p1: Point3, material: *const Material, allocator: anytype) !Box {
+    pub fn init(p0: Point3, p1: Point3, material: Rc(Material), allocator: anytype) !Box {
         var sides = ArrayList(Hittable).init(allocator);
 
-        var mat2 = try allocator.create(Material);
-        var mat3 = try allocator.create(Material);
-        var mat4 = try allocator.create(Material);
-        var mat5 = try allocator.create(Material);
-        var mat6 = try allocator.create(Material);
-        mat2.* = material.*;
-        mat3.* = material.*;
-        mat4.* = material.*;
-        mat5.* = material.*;
-        mat6.* = material.*;
-
         try sides.append(.{ .xyRect = .{ .x0 = p0.x, .x1 = p1.x, .y0 = p0.y, .y1 = p1.y, .k = p1.z, .material = material } });
-        try sides.append(.{ .xyRect = .{ .x0 = p0.x, .x1 = p1.x, .y0 = p0.y, .y1 = p1.y, .k = p0.z, .material = mat2 } });
-        try sides.append(.{ .xzRect = .{ .x0 = p0.x, .x1 = p1.x, .z0 = p0.z, .z1 = p1.z, .k = p1.y, .material = mat3 } });
-        try sides.append(.{ .xzRect = .{ .x0 = p0.x, .x1 = p1.x, .z0 = p0.z, .z1 = p1.z, .k = p0.y, .material = mat4 } });
-        try sides.append(.{ .yzRect = .{ .y0 = p0.y, .y1 = p1.y, .z0 = p0.z, .z1 = p1.z, .k = p1.x, .material = mat5 } });
-        try sides.append(.{ .yzRect = .{ .y0 = p0.y, .y1 = p1.y, .z0 = p0.z, .z1 = p1.z, .k = p0.x, .material = mat6 } });
+        try sides.append(.{ .xyRect = .{ .x0 = p0.x, .x1 = p1.x, .y0 = p0.y, .y1 = p1.y, .k = p0.z, .material = material.clone() } });
+        try sides.append(.{ .xzRect = .{ .x0 = p0.x, .x1 = p1.x, .z0 = p0.z, .z1 = p1.z, .k = p1.y, .material = material.clone() } });
+        try sides.append(.{ .xzRect = .{ .x0 = p0.x, .x1 = p1.x, .z0 = p0.z, .z1 = p1.z, .k = p0.y, .material = material.clone() } });
+        try sides.append(.{ .yzRect = .{ .y0 = p0.y, .y1 = p1.y, .z0 = p0.z, .z1 = p1.z, .k = p1.x, .material = material.clone() } });
+        try sides.append(.{ .yzRect = .{ .y0 = p0.y, .y1 = p1.y, .z0 = p0.z, .z1 = p1.z, .k = p0.x, .material = material.clone() } });
 
         return .{
             .min = p0,
@@ -559,7 +550,7 @@ const Box = struct {
         return true;
     }
 
-    pub fn deinit(box: *const Box, allocator: anytype) void {
-        box.sides.deinit(allocator);
+    pub fn deinit(box: *const Box) void {
+        box.sides.deinit();
     }
 };

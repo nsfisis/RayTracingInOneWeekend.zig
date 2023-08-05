@@ -3,6 +3,8 @@ const debug = std.debug;
 const math = std.math;
 const ArrayList = std.ArrayList;
 
+const Rc = @import("rc.zig").Rc;
+
 const rtw = @import("rtw.zig");
 
 const Ray = rtw.ray.Ray;
@@ -269,9 +271,9 @@ fn generateSimpleLightScene(rng: Random, allocator: anytype) !Hittable {
     try hittable_objects.append(makeSphere(.{ .x = 0, .y = 2, .z = 0 }, 2, mat2));
 
     const light = Texture.makeSolid(rgb(4, 4, 4));
-    var mat3 = try allocator.create(Material);
+    var mat3 = try Rc(Material).init(allocator);
 
-    mat3.* = .{ .diffuse_light = .{ .emit = light } };
+    mat3.get_mut().* = .{ .diffuse_light = .{ .emit = light } };
 
     try hittable_objects.append(.{ .xyRect = .{ .x0 = 3.0, .x1 = 5.0, .y0 = 1.0, .y1 = 3.0, .k = -2.0, .material = mat3 } });
 
@@ -281,33 +283,25 @@ fn generateSimpleLightScene(rng: Random, allocator: anytype) !Hittable {
 fn generateCornellBox(allocator: anytype) !Hittable {
     var hittable_objects = ArrayList(Hittable).init(allocator);
 
-    var red = try allocator.create(Material);
-    var white = try allocator.create(Material);
-    var white2 = try allocator.create(Material);
-    var white3 = try allocator.create(Material);
-    var white4 = try allocator.create(Material);
-    var white5 = try allocator.create(Material);
-    var green = try allocator.create(Material);
-    var light = try allocator.create(Material);
+    var red = try Rc(Material).init(allocator);
+    var white = try Rc(Material).init(allocator);
+    var green = try Rc(Material).init(allocator);
+    var light = try Rc(Material).init(allocator);
 
-    red.* = .{ .diffuse = .{ .albedo = Texture.makeSolid(rgb(0.65, 0.05, 0.05)) } };
-    white.* = .{ .diffuse = .{ .albedo = Texture.makeSolid(rgb(0.73, 0.73, 0.73)) } };
-    white2.* = .{ .diffuse = .{ .albedo = Texture.makeSolid(rgb(0.73, 0.73, 0.73)) } };
-    white3.* = .{ .diffuse = .{ .albedo = Texture.makeSolid(rgb(0.73, 0.73, 0.73)) } };
-    white4.* = .{ .diffuse = .{ .albedo = Texture.makeSolid(rgb(0.73, 0.73, 0.73)) } };
-    white5.* = .{ .diffuse = .{ .albedo = Texture.makeSolid(rgb(0.73, 0.73, 0.73)) } };
-    green.* = .{ .diffuse = .{ .albedo = Texture.makeSolid(rgb(0.12, 0.45, 0.15)) } };
-    light.* = .{ .diffuse_light = .{ .emit = Texture.makeSolid(rgb(15, 15, 15)) } };
+    red.get_mut().* = .{ .diffuse = .{ .albedo = Texture.makeSolid(rgb(0.65, 0.05, 0.05)) } };
+    white.get_mut().* = .{ .diffuse = .{ .albedo = Texture.makeSolid(rgb(0.73, 0.73, 0.73)) } };
+    green.get_mut().* = .{ .diffuse = .{ .albedo = Texture.makeSolid(rgb(0.12, 0.45, 0.15)) } };
+    light.get_mut().* = .{ .diffuse_light = .{ .emit = Texture.makeSolid(rgb(15, 15, 15)) } };
 
     try hittable_objects.append(.{ .yzRect = .{ .y0 = 0, .y1 = 555, .z0 = 0, .z1 = 555, .k = 555, .material = green } });
     try hittable_objects.append(.{ .yzRect = .{ .y0 = 0, .y1 = 555, .z0 = 0, .z1 = 555, .k = 0, .material = red } });
     try hittable_objects.append(.{ .xzRect = .{ .x0 = 213, .x1 = 343, .z0 = 227, .z1 = 332, .k = 554, .material = light } });
     try hittable_objects.append(.{ .xzRect = .{ .x0 = 0, .x1 = 555, .z0 = 0, .z1 = 555, .k = 0, .material = white } });
-    try hittable_objects.append(.{ .xzRect = .{ .x0 = 0, .x1 = 555, .z0 = 0, .z1 = 555, .k = 555, .material = white2 } });
-    try hittable_objects.append(.{ .xyRect = .{ .x0 = 0, .x1 = 555, .y0 = 0, .y1 = 555, .k = 555, .material = white3 } });
+    try hittable_objects.append(.{ .xzRect = .{ .x0 = 0, .x1 = 555, .z0 = 0, .z1 = 555, .k = 555, .material = white.clone() } });
+    try hittable_objects.append(.{ .xyRect = .{ .x0 = 0, .x1 = 555, .y0 = 0, .y1 = 555, .k = 555, .material = white.clone() } });
 
-    try hittable_objects.append(try Hittable.makeBox(.{ .x = 130, .y = 0, .z = 65 }, .{ .x = 295, .y = 165, .z = 230 }, white4, allocator));
-    try hittable_objects.append(try Hittable.makeBox(.{ .x = 265, .y = 0, .z = 295 }, .{ .x = 430, .y = 330, .z = 460 }, white5, allocator));
+    try hittable_objects.append(try Hittable.makeBox(.{ .x = 130, .y = 0, .z = 65 }, .{ .x = 295, .y = 165, .z = 230 }, white.clone(), allocator));
+    try hittable_objects.append(try Hittable.makeBox(.{ .x = 265, .y = 0, .z = 295 }, .{ .x = 430, .y = 330, .z = 460 }, white.clone(), allocator));
 
     return .{ .list = .{ .objects = hittable_objects } };
 }
@@ -380,7 +374,7 @@ pub fn main() !void {
         image_height = 600;
         samples_per_pixel = 200;
     }
-    defer world.deinit(allocator);
+    defer world.deinit();
 
     // Camera
     const camera = Camera.init(
