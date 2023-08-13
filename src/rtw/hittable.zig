@@ -32,6 +32,7 @@ const HittableTag = enum {
     xzRect,
     yzRect,
     box,
+    translate,
 };
 
 pub const Hittable = union(HittableTag) {
@@ -43,6 +44,7 @@ pub const Hittable = union(HittableTag) {
     xzRect: XzRect,
     yzRect: YzRect,
     box: Box,
+    translate: Translate,
 
     pub fn makeBox(p0: Point3, p1: Point3, material: Rc(Material), allocator: anytype) !Hittable {
         return .{ .box = try Box.init(p0, p1, material, allocator) };
@@ -58,6 +60,7 @@ pub const Hittable = union(HittableTag) {
             HittableTag.xzRect => |rect| rect.hit(r, t_min, t_max, record),
             HittableTag.yzRect => |rect| rect.hit(r, t_min, t_max, record),
             HittableTag.box => |box| box.hit(r, t_min, t_max, record),
+            HittableTag.translate => |tr| tr.hit(r, t_min, t_max, record),
         };
     }
 
@@ -71,6 +74,7 @@ pub const Hittable = union(HittableTag) {
             HittableTag.xzRect => |rect| rect.boudingBox(time0, time1, output_box),
             HittableTag.yzRect => |rect| rect.boudingBox(time0, time1, output_box),
             HittableTag.box => |box| box.boudingBox(time0, time1, output_box),
+            HittableTag.translate => |tr| tr.boudingBox(time0, time1, output_box),
         };
     }
 
@@ -84,6 +88,7 @@ pub const Hittable = union(HittableTag) {
             HittableTag.xzRect => |rect| rect.deinit(),
             HittableTag.yzRect => |rect| rect.deinit(),
             HittableTag.box => |box| box.deinit(),
+            HittableTag.translate => |tr| tr.deinit(),
         };
     }
 };
@@ -552,5 +557,45 @@ const Box = struct {
 
     pub fn deinit(box: *const Box) void {
         box.sides.deinit();
+    }
+};
+
+const Translate = struct {
+    const Self = @This();
+
+    object: Rc(Hittable),
+    offset: Vec3,
+
+    pub fn init(object: Rc(Hittable), offset: Vec3) !Self {
+        return .{
+            .object = object,
+            .offset = offset,
+        };
+    }
+
+    pub fn hit(self: Self, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
+        const offset_r: Ray = .{
+            .origin = r.origin.sub(self.offset),
+            .dir = r.dir,
+            .time = r.time,
+        };
+        if (!self.object.get().hit(offset_r, t_min, t_max, record)) {
+            return false;
+        }
+        record.p = record.p.add(self.offset);
+        return true;
+    }
+
+    pub fn boudingBox(self: Self, time0: f64, time1: f64, output_box: *Aabb) bool {
+        const result = self.object.boudingBox(time0, time1, output_box);
+        output_box.* = .{
+            .min = output_box.min.add(self.offset),
+            .max = output_box.max.add(self.offset),
+        };
+        return result;
+    }
+
+    pub fn deinit(self: *const Self) void {
+        self.object.deinit();
     }
 };
