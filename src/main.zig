@@ -137,11 +137,11 @@ fn rayColor(r: Ray, background: Color, world: Hittable, rng: Random, depth: u32)
 }
 
 fn writeColor(out: anytype, c: Color, samples_per_pixel: u32) !void {
-    const scale = 1.0 / @intToFloat(f64, samples_per_pixel);
+    const scale = 1.0 / @as(f64, @floatFromInt(samples_per_pixel));
     try out.print("{} {} {}\n", .{
-        @floatToInt(u8, 256.0 * math.clamp(@sqrt(c.x * scale), 0.0, 0.999)),
-        @floatToInt(u8, 256.0 * math.clamp(@sqrt(c.y * scale), 0.0, 0.999)),
-        @floatToInt(u8, 256.0 * math.clamp(@sqrt(c.z * scale), 0.0, 0.999)),
+        @as(u8, @intFromFloat(256.0 * math.clamp(@sqrt(c.x * scale), 0.0, 0.999))),
+        @as(u8, @intFromFloat(256.0 * math.clamp(@sqrt(c.y * scale), 0.0, 0.999))),
+        @as(u8, @intFromFloat(256.0 * math.clamp(@sqrt(c.z * scale), 0.0, 0.999))),
     });
 }
 
@@ -204,9 +204,9 @@ fn generateRandomScene(rng: Random, allocator: anytype) !Hittable {
         while (b < 3) : (b += 1) {
             const choose_mat = randomReal01(rng);
             const center = Point3{
-                .x = @intToFloat(f64, a) + 0.9 * randomReal01(rng),
+                .x = @as(f64, @floatFromInt(a)) + 0.9 * randomReal01(rng),
                 .y = 0.2,
-                .z = @intToFloat(f64, b) + 0.9 * randomReal01(rng),
+                .z = @as(f64, @floatFromInt(b)) + 0.9 * randomReal01(rng),
             };
 
             if (center.sub(.{ .x = 4, .y = 0.2, .z = 0 }).norm() <= 0.9) {
@@ -309,7 +309,7 @@ fn generateCornellBox(allocator: anytype) !Hittable {
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
-    defer debug.assert(!gpa.deinit());
+    defer debug.assert(gpa.deinit() == .ok);
 
     var rng_ = std.rand.DefaultPrng.init(42);
     var rng = rng_.random();
@@ -317,7 +317,7 @@ pub fn main() !void {
     // Image
     var aspect_ratio: f64 = 3.0 / 2.0;
     var image_width: u32 = 600;
-    var image_height: u32 = @floatToInt(u32, @divTrunc(@intToFloat(f64, image_width), aspect_ratio));
+    var image_height: u32 = @as(u32, @intFromFloat(@divTrunc(@as(f64, @floatFromInt(image_width)), aspect_ratio)));
     const max_depth = 50;
     var samples_per_pixel: u32 = 50;
 
@@ -396,7 +396,7 @@ pub fn main() !void {
 
     try stdout.print("P3\n{} {}\n255\n", .{ image_width, image_height });
 
-    var j: i32 = @intCast(i32, image_height) - 1;
+    var j: i32 = @as(i32, @intCast(image_height)) - 1;
     while (j >= 0) : (j -= 1) {
         std.debug.print("\rScanlines remaining: {}     ", .{j});
         var i: i32 = 0;
@@ -404,8 +404,8 @@ pub fn main() !void {
             var s: u32 = 0;
             var pixelColor = rgb(0.0, 0.0, 0.0);
             while (s < samples_per_pixel) : (s += 1) {
-                const u = (@intToFloat(f64, i) + randomReal01(rng)) / (@intToFloat(f64, image_width) - 1.0);
-                const v = (@intToFloat(f64, j) + randomReal01(rng)) / (@intToFloat(f64, image_height) - 1.0);
+                const u = (@as(f64, @floatFromInt(i)) + randomReal01(rng)) / (@as(f64, @floatFromInt(image_width)) - 1.0);
+                const v = (@as(f64, @floatFromInt(j)) + randomReal01(rng)) / (@as(f64, @floatFromInt(image_height)) - 1.0);
                 const r = camera.getRay(rng, u, v);
                 pixelColor = pixelColor.add(rayColor(r, background, world, rng, max_depth));
             }

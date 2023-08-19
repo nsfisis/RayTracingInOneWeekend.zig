@@ -1,4 +1,4 @@
-BUILDFLAGS := -Drelease-fast=true
+BUILDFLAGS := -Doptimize=ReleaseFast
 
 .PHONY: all
 all: fmt

@@ -53,9 +53,9 @@ pub const Perlin = struct {
         const v_ = v * v * (3 - 2 * v);
         const w_ = w * w * (3 - 2 * w);
 
-        const i = @floatToInt(i32, @floor(p.x));
-        const j = @floatToInt(i32, @floor(p.y));
-        const k = @floatToInt(i32, @floor(p.z));
+        const i = @as(i32, @intFromFloat(@floor(p.x)));
+        const j = @as(i32, @intFromFloat(@floor(p.y)));
+        const k = @as(i32, @intFromFloat(@floor(p.z)));
 
         var c: [2][2][2]Vec3 = undefined;
 
@@ -65,9 +65,9 @@ pub const Perlin = struct {
             while (dj < 2) : (dj += 1) {
                 var dk: usize = 0;
                 while (dk < 2) : (dk += 1) {
-                    const ix = @intCast(usize, i + @intCast(i32, di)) & 255;
-                    const iy = @intCast(usize, j + @intCast(i32, dj)) & 255;
-                    const iz = @intCast(usize, k + @intCast(i32, dk)) & 255;
+                    const ix = @as(usize, @intCast(i + @as(i32, @intCast(di)))) & 255;
+                    const iy = @as(usize, @intCast(j + @as(i32, @intCast(dj)))) & 255;
+                    const iz = @as(usize, @intCast(k + @as(i32, @intCast(dk)))) & 255;
                     c[di][dj][dk] = perlin.randomVec.items[
                         perlin.permX.items[ix] ^ perlin.permY.items[iy] ^ perlin.permZ.items[iz]
                     ];
@@ -109,9 +109,9 @@ pub const Perlin = struct {
             while (j < 2) : (j += 1) {
                 var k: usize = 0;
                 while (k < 2) : (k += 1) {
-                    const ti = @intToFloat(f64, i);
-                    const tj = @intToFloat(f64, j);
-                    const tk = @intToFloat(f64, k);
+                    const ti = @as(f64, @floatFromInt(i));
+                    const tj = @as(f64, @floatFromInt(j));
+                    const tk = @as(f64, @floatFromInt(k));
                     const weight = Vec3{ .x = u - ti, .y = v - tj, .z = w - tk };
                     accum +=
                         (ti * u + (1.0 - ti) * (1.0 - u)) *

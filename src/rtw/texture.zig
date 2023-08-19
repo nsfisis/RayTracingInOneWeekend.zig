@@ -130,18 +130,18 @@ pub const ImageTexture = struct {
         // Clamp input texture coordinates to [0, 1] x [1, 0]
         const u_ = std.math.clamp(u, 0.0, 1.0);
         const v_ = 1.0 - std.math.clamp(v, 0.0, 1.0); // Flip v to image coordinates
-        const i = @floatToInt(usize, u_ * @intToFloat(f64, tx.image.width));
-        const j = @floatToInt(usize, v_ * @intToFloat(f64, tx.image.height));
+        const i = @as(usize, @intFromFloat(u_ * @as(f64, @floatFromInt(tx.image.width))));
+        const j = @as(usize, @intFromFloat(v_ * @as(f64, @floatFromInt(tx.image.height))));
         // Clamp integer mapping, since actual coordinates should be less than 1.0
         const i_ = @min(i, tx.image.width - 1);
         const j_ = @min(j, tx.image.width - 1);
         const color_scale = 1.0 / 255.0;
         const pixels = tx.image.pixels.asBytes();
         const offset = j_ * tx.image.width * 4 + i_ * 4;
-        const r = @intToFloat(f64, pixels[offset + 0]);
-        const g = @intToFloat(f64, pixels[offset + 1]);
-        const b = @intToFloat(f64, pixels[offset + 2]);
-        const a = @intToFloat(f64, pixels[offset + 3]);
+        const r = @as(f64, @floatFromInt(pixels[offset + 0]));
+        const g = @as(f64, @floatFromInt(pixels[offset + 1]));
+        const b = @as(f64, @floatFromInt(pixels[offset + 2]));
+        const a = @as(f64, @floatFromInt(pixels[offset + 3]));
         if (a == 0) {
             // Ocean
             return rgb(0, 0, 1.0);
