@@ -3,6 +3,10 @@ const debug = std.debug;
 const math = std.math;
 const ArrayList = std.ArrayList;
 
+const zigimg = @import("zigimg");
+const Image = zigimg.Image;
+const PixelFormat = zigimg.PixelFormat;
+
 const Rc = @import("rc.zig").Rc;
 
 const rtw = @import("rtw.zig");
@@ -134,15 +138,6 @@ fn rayColor(r: Ray, background: Color, world: Hittable, rng: Random, depth: u32)
     } else {
         return emitted;
     }
-}
-
-fn writeColor(out: anytype, c: Color, samples_per_pixel: u32) !void {
-    const scale = 1.0 / @as(f64, @floatFromInt(samples_per_pixel));
-    try out.print("{} {} {}\n", .{
-        @as(u8, @intFromFloat(256.0 * math.clamp(@sqrt(c.x * scale), 0.0, 0.999))),
-        @as(u8, @intFromFloat(256.0 * math.clamp(@sqrt(c.y * scale), 0.0, 0.999))),
-        @as(u8, @intFromFloat(256.0 * math.clamp(@sqrt(c.z * scale), 0.0, 0.999))),
-    });
 }
 
 fn generateTwoSpheres(rng: Random, allocator: anytype) !Hittable {
@@ -390,16 +385,13 @@ pub fn main() !void {
     );
 
     // Render
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
+    var image = try Image.create(allocator, image_width, image_height, PixelFormat.rgb24);
+    defer image.deinit();
 
-    try stdout.print("P3\n{} {}\n255\n", .{ image_width, image_height });
-
-    var j: i32 = @as(i32, @intCast(image_height)) - 1;
-    while (j >= 0) : (j -= 1) {
-        std.debug.print("\rScanlines remaining: {}     ", .{j});
-        var i: i32 = 0;
+    var j: u32 = 0;
+    while (j < image_height) : (j += 1) {
+        std.debug.print("\rScanlines remaining: {}     ", .{image_height - j - 1});
+        var i: u32 = 0;
         while (i < image_width) : (i += 1) {
             var s: u32 = 0;
             var pixelColor = rgb(0.0, 0.0, 0.0);
@@ -409,9 +401,15 @@ pub fn main() !void {
                 const r = camera.getRay(rng, u, v);
                 pixelColor = pixelColor.add(rayColor(r, background, world, rng, max_depth));
             }
-            try writeColor(stdout, pixelColor, samples_per_pixel);
+            const scale = 1.0 / @as(f64, @floatFromInt(samples_per_pixel));
+            image.pixels.rgb24[i + (image_height - j - 1) * image_width] = .{
+                .r = @intFromFloat(256.0 * math.clamp(@sqrt(pixelColor.x * scale), 0.0, 0.999)),
+                .g = @intFromFloat(256.0 * math.clamp(@sqrt(pixelColor.y * scale), 0.0, 0.999)),
+                .b = @intFromFloat(256.0 * math.clamp(@sqrt(pixelColor.z * scale), 0.0, 0.999)),
+            };
         }
     }
 
-    try bw.flush();
+    // Output
+    try image.writeToFilePath("out.png", .{ .png = .{} });
 }

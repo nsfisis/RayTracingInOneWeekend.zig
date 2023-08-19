@@ -2,8 +2,8 @@ BUILDFLAGS := -Doptimize=ReleaseFast
 
 .PHONY: all
 all: fmt
-	@rm -f out.ppm
-	@zig build ${BUILDFLAGS} run > out.ppm
+	@rm -f out.png
+	@zig build ${BUILDFLAGS} run
 
 .PHONY: build
 build: fmt
