@@ -295,8 +295,18 @@ fn generateCornellBox(allocator: anytype) !Hittable {
     try hittable_objects.append(.{ .xzRect = .{ .x0 = 0, .x1 = 555, .z0 = 0, .z1 = 555, .k = 555, .material = white.clone() } });
     try hittable_objects.append(.{ .xyRect = .{ .x0 = 0, .x1 = 555, .y0 = 0, .y1 = 555, .k = 555, .material = white.clone() } });
 
-    try hittable_objects.append(try Hittable.makeBox(.{ .x = 130, .y = 0, .z = 65 }, .{ .x = 295, .y = 165, .z = 230 }, white.clone(), allocator));
-    try hittable_objects.append(try Hittable.makeBox(.{ .x = 265, .y = 0, .z = 295 }, .{ .x = 430, .y = 330, .z = 460 }, white.clone(), allocator));
+    var box1 = try Rc(Hittable).init(allocator);
+    var box1r = try Rc(Hittable).init(allocator);
+    var box2 = try Rc(Hittable).init(allocator);
+    var box2r = try Rc(Hittable).init(allocator);
+
+    box1.get_mut().* = try Hittable.makeBox(.{ .x = 0, .y = 0, .z = 0 }, .{ .x = 165, .y = 330, .z = 165 }, white.clone(), allocator);
+    box1r.get_mut().* = Hittable.rotateY(box1, deg2rad(15));
+    try hittable_objects.append(Hittable.translate(box1r, .{ .x = 265, .y = 0, .z = 295 }));
+
+    box2.get_mut().* = try Hittable.makeBox(.{ .x = 0, .y = 0, .z = 0 }, .{ .x = 165, .y = 165, .z = 165 }, white.clone(), allocator);
+    box2r.get_mut().* = Hittable.rotateY(box2, deg2rad(-18));
+    try hittable_objects.append(Hittable.translate(box2r, .{ .x = 130, .y = 0, .z = 65 }));
 
     return .{ .list = .{ .objects = hittable_objects } };
 }

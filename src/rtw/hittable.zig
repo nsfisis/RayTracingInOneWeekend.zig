@@ -33,6 +33,7 @@ const HittableTag = enum {
     yzRect,
     box,
     translate,
+    rotateY,
 };
 
 pub const Hittable = union(HittableTag) {
@@ -45,9 +46,18 @@ pub const Hittable = union(HittableTag) {
     yzRect: YzRect,
     box: Box,
     translate: Translate,
+    rotateY: RotateY,
 
     pub fn makeBox(p0: Point3, p1: Point3, material: Rc(Material), allocator: anytype) !Hittable {
         return .{ .box = try Box.init(p0, p1, material, allocator) };
+    }
+
+    pub fn translate(obj: Rc(Hittable), offset: Vec3) Hittable {
+        return .{ .translate = .{ .object = obj, .offset = offset } };
+    }
+
+    pub fn rotateY(obj: Rc(Hittable), angle: f64) Hittable {
+        return .{ .rotateY = RotateY.init(obj, angle) };
     }
 
     pub fn hit(h: Hittable, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
@@ -61,11 +71,12 @@ pub const Hittable = union(HittableTag) {
             HittableTag.yzRect => |rect| rect.hit(r, t_min, t_max, record),
             HittableTag.box => |box| box.hit(r, t_min, t_max, record),
             HittableTag.translate => |tr| tr.hit(r, t_min, t_max, record),
+            HittableTag.rotateY => |rot| rot.hit(r, t_min, t_max, record),
         };
     }
 
     fn boudingBox(h: Hittable, time0: f64, time1: f64, output_box: *Aabb) bool {
-        return switch (h.*) {
+        return switch (h) {
             HittableTag.sphere => |sphere| sphere.boudingBox(time0, time1, output_box),
             HittableTag.movingSphere => |movingSphere| movingSphere.boudingBox(time0, time1, output_box),
             HittableTag.list => |list| list.boudingBox(time0, time1, output_box),
@@ -75,6 +86,7 @@ pub const Hittable = union(HittableTag) {
             HittableTag.yzRect => |rect| rect.boudingBox(time0, time1, output_box),
             HittableTag.box => |box| box.boudingBox(time0, time1, output_box),
             HittableTag.translate => |tr| tr.boudingBox(time0, time1, output_box),
+            HittableTag.rotateY => |rot| rot.boudingBox(time0, time1, output_box),
         };
     }
 
@@ -89,6 +101,7 @@ pub const Hittable = union(HittableTag) {
             HittableTag.yzRect => |rect| rect.deinit(),
             HittableTag.box => |box| box.deinit(),
             HittableTag.translate => |tr| tr.deinit(),
+            HittableTag.rotateY => |rot| rot.deinit(),
         };
     }
 };
@@ -256,10 +269,10 @@ const HittableList = struct {
         var first_box = true;
         var tmp_box: Aabb = undefined;
         for (list.objects.items) |object| {
-            if (!object.boudingBox(time0, time1, tmp_box)) {
+            if (!object.boudingBox(time0, time1, &tmp_box)) {
                 return false;
             }
-            output_box = if (first_box) tmp_box else Aabb.surroundingBox(output_box, tmp_box);
+            output_box.* = if (first_box) tmp_box else Aabb.surroundingBox(output_box.*, tmp_box);
             first_box = false;
         }
         return true;
@@ -400,8 +413,8 @@ const XyRect = struct {
         // The bounding box must have non-zero width in each dimension, so pad the Z
         // dimension a small amount.
         output_box.* = .{
-            .min = Point3.init(rect.x0, rect.y0, rect.k - 0.0001),
-            .max = Point3.init(rect.x1, rect.y1, rect.k + 0.0001),
+            .min = .{ .x = rect.x0, .y = rect.y0, .z = rect.k - 0.0001 },
+            .max = .{ .x = rect.x1, .y = rect.y1, .z = rect.k + 0.0001 },
         };
         return true;
     }
@@ -453,8 +466,8 @@ const XzRect = struct {
         // The bounding box must have non-zero width in each dimension, so pad the Y
         // dimension a small amount.
         output_box.* = .{
-            .min = Point3.init(rect.x0, rect.k - 0.0001, rect.z0),
-            .max = Point3.init(rect.x1, rect.k + 0.0001, rect.z1),
+            .min = .{ .x = rect.x0, .y = rect.k - 0.0001, .z = rect.z0 },
+            .max = .{ .x = rect.x1, .y = rect.k + 0.0001, .z = rect.z1 },
         };
         return true;
     }
@@ -506,8 +519,8 @@ const YzRect = struct {
         // The bounding box must have non-zero width in each dimension, so pad the X
         // dimension a small amount.
         output_box.* = .{
-            .min = Point3.init(rect.k - 0.0001, rect.y0, rect.z0),
-            .max = Point3.init(rect.k + 0.0001, rect.y1, rect.z1),
+            .min = .{ .x = rect.k - 0.0001, .y = rect.y0, .z = rect.z0 },
+            .max = .{ .x = rect.k + 0.0001, .y = rect.y1, .z = rect.z1 },
         };
         return true;
     }
@@ -566,13 +579,6 @@ const Translate = struct {
     object: Rc(Hittable),
     offset: Vec3,
 
-    pub fn init(object: Rc(Hittable), offset: Vec3) !Self {
-        return .{
-            .object = object,
-            .offset = offset,
-        };
-    }
-
     pub fn hit(self: Self, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
         const offset_r: Ray = .{
             .origin = r.origin.sub(self.offset),
@@ -587,12 +593,117 @@ const Translate = struct {
     }
 
     pub fn boudingBox(self: Self, time0: f64, time1: f64, output_box: *Aabb) bool {
-        const result = self.object.boudingBox(time0, time1, output_box);
+        const result = self.object.get().boudingBox(time0, time1, output_box);
         output_box.* = .{
             .min = output_box.min.add(self.offset),
             .max = output_box.max.add(self.offset),
         };
         return result;
+    }
+
+    pub fn deinit(self: *const Self) void {
+        self.object.deinit();
+    }
+};
+
+const RotateY = struct {
+    const Self = @This();
+
+    object: Rc(Hittable),
+    sin_t: f64,
+    cos_t: f64,
+    bbox: Aabb,
+
+    pub fn init(object: Rc(Hittable), t: f64) Self {
+        const sin_t = math.sin(t);
+        const cos_t = math.cos(t);
+        var bbox: Aabb = undefined;
+        _ = object.get().boudingBox(0, 0, &bbox);
+
+        var min: Point3 = .{ .x = math.inf(f64), .y = math.inf(f64), .z = math.inf(f64) };
+        var max: Point3 = .{ .x = -math.inf(f64), .y = -math.inf(f64), .z = -math.inf(f64) };
+
+        var i: u32 = 0;
+        while (i < 2) : (i += 1) {
+            var j: u32 = 0;
+            while (j < 2) : (j += 1) {
+                var k: u32 = 0;
+                while (k < 2) : (k += 1) {
+                    const i_f: f64 = @floatFromInt(i);
+                    const j_f: f64 = @floatFromInt(j);
+                    const k_f: f64 = @floatFromInt(k);
+                    const x = i_f * bbox.max.x + (1.0 - i_f) * bbox.min.x;
+                    const y = j_f * bbox.max.y + (1.0 - j_f) * bbox.min.y;
+                    const z = k_f * bbox.max.z + (1.0 - k_f) * bbox.min.z;
+
+                    const nx = cos_t * x + sin_t * z;
+                    const nz = -sin_t * x + cos_t * z;
+
+                    const tester: Vec3 = .{ .x = nx, .y = y, .z = nz };
+
+                    min.x = @min(min.x, tester.x);
+                    min.y = @min(min.y, tester.y);
+                    min.z = @min(min.z, tester.z);
+                    max.x = @max(max.x, tester.x);
+                    max.y = @max(max.y, tester.y);
+                    max.z = @max(max.z, tester.z);
+                }
+            }
+        }
+
+        return .{
+            .object = object,
+            .sin_t = sin_t,
+            .cos_t = cos_t,
+            .bbox = .{ .min = min, .max = max },
+        };
+    }
+
+    pub fn hit(self: Self, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
+        // Change the ray from world space to object space.
+        var origin = r.origin;
+        var dir = r.dir;
+
+        origin.x = self.cos_t * r.origin.x - self.sin_t * r.origin.z;
+        origin.z = self.sin_t * r.origin.x + self.cos_t * r.origin.z;
+
+        dir.x = self.cos_t * r.dir.x - self.sin_t * r.dir.z;
+        dir.z = self.sin_t * r.dir.x + self.cos_t * r.dir.z;
+
+        const rotated_r: Ray = .{
+            .origin = origin,
+            .dir = dir,
+            .time = r.time,
+        };
+
+        if (!self.object.get().hit(rotated_r, t_min, t_max, record)) {
+            return false;
+        }
+
+        // Change the intersection point from object space to world space.
+        // Rotate -t around axis Y.
+        //   cos(-t) = cos(t)
+        //   sin(-t) = -sin(t)
+        var p = record.p;
+        p.x = self.cos_t * record.p.x + self.sin_t * record.p.z;
+        p.z = -self.sin_t * record.p.x + self.cos_t * record.p.z;
+
+        // Change the normal from object space to world space.
+        var normal = record.normal;
+        normal.x = self.cos_t * record.normal.x + self.sin_t * record.normal.z;
+        normal.z = -self.sin_t * record.normal.x + self.cos_t * record.normal.z;
+
+        record.p = p;
+        record.normal = normal;
+
+        return true;
+    }
+
+    pub fn boudingBox(self: Self, time0: f64, time1: f64, output_box: *Aabb) bool {
+        _ = time0;
+        _ = time1;
+        output_box.* = self.bbox;
+        return true;
     }
 
     pub fn deinit(self: *const Self) void {
