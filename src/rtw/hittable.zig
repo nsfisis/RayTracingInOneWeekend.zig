@@ -37,6 +37,8 @@ const HittableTag = enum {
 };
 
 pub const Hittable = union(HittableTag) {
+    const Self = @This();
+
     sphere: Sphere,
     movingSphere: MovingSphere,
     list: HittableList,
@@ -48,60 +50,60 @@ pub const Hittable = union(HittableTag) {
     translate: Translate,
     rotateY: RotateY,
 
-    pub fn makeBox(p0: Point3, p1: Point3, material: Rc(Material), allocator: anytype) !Hittable {
+    pub fn makeBox(p0: Point3, p1: Point3, material: Rc(Material), allocator: anytype) !Self {
         return .{ .box = try Box.init(p0, p1, material, allocator) };
     }
 
-    pub fn translate(obj: Rc(Hittable), offset: Vec3) Hittable {
+    pub fn translate(obj: Rc(Self), offset: Vec3) Self {
         return .{ .translate = .{ .object = obj, .offset = offset } };
     }
 
-    pub fn rotateY(obj: Rc(Hittable), angle: f64) Hittable {
+    pub fn rotateY(obj: Rc(Self), angle: f64) Self {
         return .{ .rotateY = RotateY.init(obj, angle) };
     }
 
-    pub fn hit(h: Hittable, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
-        return switch (h) {
-            HittableTag.sphere => |sphere| sphere.hit(r, t_min, t_max, record),
-            HittableTag.movingSphere => |movingSphere| movingSphere.hit(r, t_min, t_max, record),
-            HittableTag.list => |list| list.hit(r, t_min, t_max, record),
-            HittableTag.bvhNode => |node| node.hit(r, t_min, t_max, record),
-            HittableTag.xyRect => |rect| rect.hit(r, t_min, t_max, record),
-            HittableTag.xzRect => |rect| rect.hit(r, t_min, t_max, record),
-            HittableTag.yzRect => |rect| rect.hit(r, t_min, t_max, record),
-            HittableTag.box => |box| box.hit(r, t_min, t_max, record),
-            HittableTag.translate => |tr| tr.hit(r, t_min, t_max, record),
-            HittableTag.rotateY => |rot| rot.hit(r, t_min, t_max, record),
+    pub fn hit(self: Self, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
+        return switch (self) {
+            HittableTag.sphere => |slf| slf.hit(r, t_min, t_max, record),
+            HittableTag.movingSphere => |slf| slf.hit(r, t_min, t_max, record),
+            HittableTag.list => |slf| slf.hit(r, t_min, t_max, record),
+            HittableTag.bvhNode => |slf| slf.hit(r, t_min, t_max, record),
+            HittableTag.xyRect => |slf| slf.hit(r, t_min, t_max, record),
+            HittableTag.xzRect => |slf| slf.hit(r, t_min, t_max, record),
+            HittableTag.yzRect => |slf| slf.hit(r, t_min, t_max, record),
+            HittableTag.box => |slf| slf.hit(r, t_min, t_max, record),
+            HittableTag.translate => |slf| slf.hit(r, t_min, t_max, record),
+            HittableTag.rotateY => |slf| slf.hit(r, t_min, t_max, record),
         };
     }
 
-    fn boudingBox(h: Hittable, time0: f64, time1: f64, output_box: *Aabb) bool {
-        return switch (h) {
-            HittableTag.sphere => |sphere| sphere.boudingBox(time0, time1, output_box),
-            HittableTag.movingSphere => |movingSphere| movingSphere.boudingBox(time0, time1, output_box),
-            HittableTag.list => |list| list.boudingBox(time0, time1, output_box),
-            HittableTag.bvhNode => |node| node.boudingBox(time0, time1, output_box),
-            HittableTag.xyRect => |rect| rect.boudingBox(time0, time1, output_box),
-            HittableTag.xzRect => |rect| rect.boudingBox(time0, time1, output_box),
-            HittableTag.yzRect => |rect| rect.boudingBox(time0, time1, output_box),
-            HittableTag.box => |box| box.boudingBox(time0, time1, output_box),
-            HittableTag.translate => |tr| tr.boudingBox(time0, time1, output_box),
-            HittableTag.rotateY => |rot| rot.boudingBox(time0, time1, output_box),
+    fn boudingBox(self: Self, time0: f64, time1: f64, output_box: *Aabb) bool {
+        return switch (self) {
+            HittableTag.sphere => |slf| slf.boudingBox(time0, time1, output_box),
+            HittableTag.movingSphere => |slf| slf.boudingBox(time0, time1, output_box),
+            HittableTag.list => |slf| slf.boudingBox(time0, time1, output_box),
+            HittableTag.bvhNode => |slf| slf.boudingBox(time0, time1, output_box),
+            HittableTag.xyRect => |slf| slf.boudingBox(time0, time1, output_box),
+            HittableTag.xzRect => |slf| slf.boudingBox(time0, time1, output_box),
+            HittableTag.yzRect => |slf| slf.boudingBox(time0, time1, output_box),
+            HittableTag.box => |slf| slf.boudingBox(time0, time1, output_box),
+            HittableTag.translate => |slf| slf.boudingBox(time0, time1, output_box),
+            HittableTag.rotateY => |slf| slf.boudingBox(time0, time1, output_box),
         };
     }
 
-    pub fn deinit(h: *const Hittable) void {
-        return switch (h.*) {
-            HittableTag.sphere => |sphere| sphere.deinit(),
-            HittableTag.movingSphere => |movingSphere| movingSphere.deinit(),
-            HittableTag.list => |list| list.deinit(),
-            HittableTag.bvhNode => |node| node.deinit(),
-            HittableTag.xyRect => |rect| rect.deinit(),
-            HittableTag.xzRect => |rect| rect.deinit(),
-            HittableTag.yzRect => |rect| rect.deinit(),
-            HittableTag.box => |box| box.deinit(),
-            HittableTag.translate => |tr| tr.deinit(),
-            HittableTag.rotateY => |rot| rot.deinit(),
+    pub fn deinit(self: *const Self) void {
+        return switch (self.*) {
+            HittableTag.sphere => |slf| slf.deinit(),
+            HittableTag.movingSphere => |slf| slf.deinit(),
+            HittableTag.list => |slf| slf.deinit(),
+            HittableTag.bvhNode => |slf| slf.deinit(),
+            HittableTag.xyRect => |slf| slf.deinit(),
+            HittableTag.xzRect => |slf| slf.deinit(),
+            HittableTag.yzRect => |slf| slf.deinit(),
+            HittableTag.box => |slf| slf.deinit(),
+            HittableTag.translate => |slf| slf.deinit(),
+            HittableTag.rotateY => |slf| slf.deinit(),
         };
     }
 };
