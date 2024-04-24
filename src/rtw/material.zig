@@ -125,6 +125,6 @@ fn reflect(v: Vec3, n: Vec3) Vec3 {
 fn refract(uv: Vec3, n: Vec3, etai_over_etat: f64) Vec3 {
     const cos_theta = @min(uv.mul(-1.0).dot(n), 1.0);
     const r_out_perpendicular = uv.add(n.mul(cos_theta)).mul(etai_over_etat);
-    const r_out_parallel = n.mul(-@sqrt(@fabs(1.0 - r_out_perpendicular.normSquared())));
+    const r_out_parallel = n.mul(-@sqrt(@abs(1.0 - r_out_perpendicular.normSquared())));
     return r_out_perpendicular.add(r_out_parallel);
 }

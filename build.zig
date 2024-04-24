@@ -24,7 +24,14 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    exe.addAnonymousModule("zigimg", .{ .source_file = .{ .path = "deps/zigimg/zigimg.zig" } });
+    exe.root_module.addAnonymousImport(
+        "zigimg",
+        .{
+            .root_source_file = .{
+                .path = "deps/zigimg/zigimg.zig",
+            },
+        },
+    );
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default

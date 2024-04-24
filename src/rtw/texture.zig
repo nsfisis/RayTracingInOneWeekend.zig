@@ -67,8 +67,8 @@ pub const CheckerTexture = struct {
     even: *const Texture,
 
     fn init(allocator: std.mem.Allocator, odd: Texture, even: Texture) !CheckerTexture {
-        var odd_ = try allocator.create(Texture);
-        var even_ = try allocator.create(Texture);
+        const odd_ = try allocator.create(Texture);
+        const even_ = try allocator.create(Texture);
         odd_.* = odd;
         even_.* = even;
         return .{

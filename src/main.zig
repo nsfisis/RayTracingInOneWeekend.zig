@@ -145,8 +145,8 @@ fn generateTwoSpheres(rng: Random, allocator: anytype) !Hittable {
     var hittable_objects = ArrayList(Hittable).init(allocator);
 
     const checker = try Texture.makeChecker(allocator, rgb(0.2, 0.3, 0.1), rgb(0.9, 0.9, 0.9));
-    var mat1 = try allocator.create(Material);
-    var mat2 = try allocator.create(Material);
+    const mat1 = try allocator.create(Material);
+    const mat2 = try allocator.create(Material);
 
     mat1.* = .{ .diffuse = .{ .albedo = checker } };
     mat2.* = .{ .diffuse = .{ .albedo = checker } };
@@ -161,8 +161,8 @@ fn generateTwoPerlinSpheres(rng: Random, allocator: anytype) !Hittable {
     var hittable_objects = ArrayList(Hittable).init(allocator);
 
     const perlin = try Texture.makeNoise(allocator, 4.0, rng);
-    var mat1 = try allocator.create(Material);
-    var mat2 = try allocator.create(Material);
+    const mat1 = try allocator.create(Material);
+    const mat2 = try allocator.create(Material);
 
     mat1.* = .{ .diffuse = .{ .albedo = perlin } };
     mat2.* = .{ .diffuse = .{ .albedo = perlin } };
@@ -176,10 +176,10 @@ fn generateTwoPerlinSpheres(rng: Random, allocator: anytype) !Hittable {
 fn generateRandomScene(rng: Random, allocator: anytype) !Hittable {
     var hittable_objects = ArrayList(Hittable).init(allocator);
 
-    var mat_ground = try allocator.create(Material);
-    var mat1 = try allocator.create(Material);
-    var mat2 = try allocator.create(Material);
-    var mat3 = try allocator.create(Material);
+    const mat_ground = try allocator.create(Material);
+    const mat1 = try allocator.create(Material);
+    const mat2 = try allocator.create(Material);
+    const mat3 = try allocator.create(Material);
 
     const checker = try Texture.makeChecker(allocator, rgb(0.2, 0.3, 0.1), rgb(0.9, 0.9, 0.9));
 
@@ -208,7 +208,7 @@ fn generateRandomScene(rng: Random, allocator: anytype) !Hittable {
                 continue;
             }
 
-            var mat_sphere = try allocator.create(Material);
+            const mat_sphere = try allocator.create(Material);
             if (choose_mat < 0.8) {
                 // diffuse
                 const albedo = Color.random01(rng).mulV(Color.random01(rng));
@@ -243,7 +243,7 @@ fn generateEarthScene(allocator: anytype) !Hittable {
     var hittable_objects = ArrayList(Hittable).init(allocator);
 
     const earth_texture = try Texture.makeImage(allocator, "assets/sekaichizu.png");
-    var earth_surface = try allocator.create(Material);
+    const earth_surface = try allocator.create(Material);
 
     earth_surface.* = .{ .diffuse = .{ .albedo = earth_texture } };
 
@@ -256,8 +256,8 @@ fn generateSimpleLightScene(rng: Random, allocator: anytype) !Hittable {
     var hittable_objects = ArrayList(Hittable).init(allocator);
 
     const perlin = try Texture.makeNoise(allocator, 4.0, rng);
-    var mat1 = try allocator.create(Material);
-    var mat2 = try allocator.create(Material);
+    const mat1 = try allocator.create(Material);
+    const mat2 = try allocator.create(Material);
 
     mat1.* = .{ .diffuse = .{ .albedo = perlin } };
     mat2.* = .{ .diffuse = .{ .albedo = perlin } };
@@ -317,7 +317,7 @@ pub fn main() !void {
     defer debug.assert(gpa.deinit() == .ok);
 
     var rng_ = std.rand.DefaultPrng.init(42);
-    var rng = rng_.random();
+    const rng = rng_.random();
 
     // Image
     var aspect_ratio: f64 = 3.0 / 2.0;

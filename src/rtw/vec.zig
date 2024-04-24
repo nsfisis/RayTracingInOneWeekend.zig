@@ -97,7 +97,7 @@ pub const Vec3 = struct {
 
     pub fn near_zero(v: Vec3) bool {
         const epsilon = 1e-8;
-        return @fabs(v.x) < epsilon and @fabs(v.y) < epsilon and @fabs(v.z) < epsilon;
+        return @abs(v.x) < epsilon and @abs(v.y) < epsilon and @abs(v.z) < epsilon;
     }
 };
 

@@ -88,7 +88,7 @@ pub const Perlin = struct {
             weight *= 0.5;
             p_ = p_.mul(2.0);
         }
-        return @fabs(accum);
+        return @abs(accum);
     }
 
     fn permute(rng: Random, p: []usize, n: usize) void {

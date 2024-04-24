@@ -164,7 +164,7 @@ const Sphere = struct {
     }
 
     fn getSphereUv(p: Point3, u: *f64, v: *f64) void {
-        const phi = math.atan2(f64, -p.z, p.x) + pi;
+        const phi = math.atan2(-p.z, p.x) + pi;
         const theta = math.acos(-p.y);
         u.* = phi / (2.0 * pi);
         v.* = theta / pi;
@@ -303,7 +303,7 @@ const BvhNode = struct {
         var left: *Hittable = undefined;
         var right: *Hittable = undefined;
 
-        var objects_ = objects;
+        const objects_ = objects;
         const axis = randomInt(u8, 0, 3);
 
         const object_span = end - start;
@@ -325,8 +325,8 @@ const BvhNode = struct {
             right.* = .{ .bvhNode = BvhNode.init(objects, mid, end, time0, time1) };
         }
 
-        var box_left: Aabb = undefined;
-        var box_right: Aabb = undefined;
+        const box_left: Aabb = undefined;
+        const box_right: Aabb = undefined;
 
         if (!left.boudingBox(time0, time1, box_left) || !right.boudingBox(time0, time1, box_right)) {
             // ERROR
