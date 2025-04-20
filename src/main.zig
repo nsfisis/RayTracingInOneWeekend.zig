@@ -14,26 +14,13 @@ const Point3 = rtw.vec.Point3;
 const Color = rtw.vec.Color;
 const rgb = rtw.vec.rgb;
 const Random = rtw.rand.Random;
-const randomPointInUnitSphere = rtw.rand.randomPointInUnitSphere;
 const randomPointInUnitDisk = rtw.rand.randomPointInUnitDisk;
-const randomUnitVector = rtw.rand.randomUnitVector;
-const randomInt = rtw.rand.randomInt;
 const randomReal01 = rtw.rand.randomReal01;
 const randomReal = rtw.rand.randomReal;
 
 const Material = rtw.material.Material;
-const DiffuseMaterial = rtw.material.DiffuseMaterial;
-const MetalMaterial = rtw.material.MetalMaterial;
-const DielectricMaterial = rtw.material.DielectricMaterial;
-
 const Texture = rtw.texture.Texture;
-const SolidTexture = rtw.texture.SolidTexture;
-const CheckerTexture = rtw.texture.CheckerTexture;
-
 const Hittable = rtw.hittable.Hittable;
-const BvhNode = rtw.hittable.BvhNode;
-
-const Aabb = rtw.aabb.Aabb;
 const HitRecord = rtw.hit_record.HitRecord;
 
 fn makeSphere(center: Point3, radius: f64, material: *const Material) Hittable {
