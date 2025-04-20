@@ -13,14 +13,7 @@ const randomPointInUnitSphere = rand.randomPointInUnitSphere;
 const randomUnitVector = rand.randomUnitVector;
 const randomReal01 = rand.randomReal01;
 
-const MaterialTag = enum {
-    diffuse,
-    metal,
-    dielectric,
-    diffuse_light,
-};
-
-pub const Material = union(MaterialTag) {
+pub const Material = union(enum) {
     diffuse: DiffuseMaterial,
     metal: MetalMaterial,
     dielectric: DielectricMaterial,
@@ -28,19 +21,19 @@ pub const Material = union(MaterialTag) {
 
     pub fn scatter(mat: Material, r_in: Ray, record: HitRecord, attenuation: *Color, scattered: *Ray, rng: Random) bool {
         return switch (mat) {
-            MaterialTag.diffuse => |diffuse_mat| diffuse_mat.scatter(r_in, record, attenuation, scattered, rng),
-            MaterialTag.metal => |metal_mat| metal_mat.scatter(r_in, record, attenuation, scattered, rng),
-            MaterialTag.dielectric => |dielectric_mat| dielectric_mat.scatter(r_in, record, attenuation, scattered, rng),
-            MaterialTag.diffuse_light => |diffuse_light_mat| diffuse_light_mat.scatter(r_in, record, attenuation, scattered, rng),
+            .diffuse => |diffuse_mat| diffuse_mat.scatter(r_in, record, attenuation, scattered, rng),
+            .metal => |metal_mat| metal_mat.scatter(r_in, record, attenuation, scattered, rng),
+            .dielectric => |dielectric_mat| dielectric_mat.scatter(r_in, record, attenuation, scattered, rng),
+            .diffuse_light => |diffuse_light_mat| diffuse_light_mat.scatter(r_in, record, attenuation, scattered, rng),
         };
     }
 
     pub fn emitted(mat: Material, u: f64, v: f64, p: Vec3) Color {
         return switch (mat) {
-            MaterialTag.diffuse => rgb(0, 0, 0),
-            MaterialTag.metal => rgb(0, 0, 0),
-            MaterialTag.dielectric => rgb(0, 0, 0),
-            MaterialTag.diffuse_light => |diffuse_light_mat| diffuse_light_mat.emitted(u, v, p),
+            .diffuse => rgb(0, 0, 0),
+            .metal => rgb(0, 0, 0),
+            .dielectric => rgb(0, 0, 0),
+            .diffuse_light => |diffuse_light_mat| diffuse_light_mat.emitted(u, v, p),
         };
     }
 };

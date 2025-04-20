@@ -19,19 +19,7 @@ const Material = @import("material.zig").Material;
 const HitRecord = @import("hit_record.zig").HitRecord;
 const Aabb = @import("aabb.zig").Aabb;
 
-const HittableTag = enum {
-    sphere,
-    movingSphere,
-    list,
-    xyRect,
-    xzRect,
-    yzRect,
-    box,
-    translate,
-    rotateY,
-};
-
-pub const Hittable = union(HittableTag) {
+pub const Hittable = union(enum) {
     const Self = @This();
 
     sphere: Sphere,
@@ -58,43 +46,43 @@ pub const Hittable = union(HittableTag) {
 
     pub fn hit(self: Self, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
         return switch (self) {
-            HittableTag.sphere => |slf| slf.hit(r, t_min, t_max, record),
-            HittableTag.movingSphere => |slf| slf.hit(r, t_min, t_max, record),
-            HittableTag.list => |slf| slf.hit(r, t_min, t_max, record),
-            HittableTag.xyRect => |slf| slf.hit(r, t_min, t_max, record),
-            HittableTag.xzRect => |slf| slf.hit(r, t_min, t_max, record),
-            HittableTag.yzRect => |slf| slf.hit(r, t_min, t_max, record),
-            HittableTag.box => |slf| slf.hit(r, t_min, t_max, record),
-            HittableTag.translate => |slf| slf.hit(r, t_min, t_max, record),
-            HittableTag.rotateY => |slf| slf.hit(r, t_min, t_max, record),
+            .sphere => |slf| slf.hit(r, t_min, t_max, record),
+            .movingSphere => |slf| slf.hit(r, t_min, t_max, record),
+            .list => |slf| slf.hit(r, t_min, t_max, record),
+            .xyRect => |slf| slf.hit(r, t_min, t_max, record),
+            .xzRect => |slf| slf.hit(r, t_min, t_max, record),
+            .yzRect => |slf| slf.hit(r, t_min, t_max, record),
+            .box => |slf| slf.hit(r, t_min, t_max, record),
+            .translate => |slf| slf.hit(r, t_min, t_max, record),
+            .rotateY => |slf| slf.hit(r, t_min, t_max, record),
         };
     }
 
     fn boudingBox(self: Self, time0: f64, time1: f64, output_box: *Aabb) bool {
         return switch (self) {
-            HittableTag.sphere => |slf| slf.boudingBox(time0, time1, output_box),
-            HittableTag.movingSphere => |slf| slf.boudingBox(time0, time1, output_box),
-            HittableTag.list => |slf| slf.boudingBox(time0, time1, output_box),
-            HittableTag.xyRect => |slf| slf.boudingBox(time0, time1, output_box),
-            HittableTag.xzRect => |slf| slf.boudingBox(time0, time1, output_box),
-            HittableTag.yzRect => |slf| slf.boudingBox(time0, time1, output_box),
-            HittableTag.box => |slf| slf.boudingBox(time0, time1, output_box),
-            HittableTag.translate => |slf| slf.boudingBox(time0, time1, output_box),
-            HittableTag.rotateY => |slf| slf.boudingBox(time0, time1, output_box),
+            .sphere => |slf| slf.boudingBox(time0, time1, output_box),
+            .movingSphere => |slf| slf.boudingBox(time0, time1, output_box),
+            .list => |slf| slf.boudingBox(time0, time1, output_box),
+            .xyRect => |slf| slf.boudingBox(time0, time1, output_box),
+            .xzRect => |slf| slf.boudingBox(time0, time1, output_box),
+            .yzRect => |slf| slf.boudingBox(time0, time1, output_box),
+            .box => |slf| slf.boudingBox(time0, time1, output_box),
+            .translate => |slf| slf.boudingBox(time0, time1, output_box),
+            .rotateY => |slf| slf.boudingBox(time0, time1, output_box),
         };
     }
 
     pub fn deinit(self: *const Self) void {
         return switch (self.*) {
-            HittableTag.sphere => |slf| slf.deinit(),
-            HittableTag.movingSphere => |slf| slf.deinit(),
-            HittableTag.list => |slf| slf.deinit(),
-            HittableTag.xyRect => |slf| slf.deinit(),
-            HittableTag.xzRect => |slf| slf.deinit(),
-            HittableTag.yzRect => |slf| slf.deinit(),
-            HittableTag.box => |slf| slf.deinit(),
-            HittableTag.translate => |slf| slf.deinit(),
-            HittableTag.rotateY => |slf| slf.deinit(),
+            .sphere => |slf| slf.deinit(),
+            .movingSphere => |slf| slf.deinit(),
+            .list => |slf| slf.deinit(),
+            .xyRect => |slf| slf.deinit(),
+            .xzRect => |slf| slf.deinit(),
+            .yzRect => |slf| slf.deinit(),
+            .box => |slf| slf.deinit(),
+            .translate => |slf| slf.deinit(),
+            .rotateY => |slf| slf.deinit(),
         };
     }
 };

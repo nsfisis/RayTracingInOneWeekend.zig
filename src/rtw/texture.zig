@@ -7,14 +7,7 @@ const rgb = @import("vec.zig").rgb;
 const Random = @import("rand.zig").Random;
 const Perlin = @import("perlin.zig").Perlin;
 
-const TextureTag = enum {
-    solid,
-    checker,
-    noise,
-    image,
-};
-
-pub const Texture = union(TextureTag) {
+pub const Texture = union(enum) {
     solid: SolidTexture,
     checker: CheckerTexture,
     noise: NoiseTexture,
@@ -42,10 +35,10 @@ pub const Texture = union(TextureTag) {
 
     pub fn value(tx: Texture, u: f64, v: f64, p: Vec3) Color {
         return switch (tx) {
-            TextureTag.solid => |solid_tx| solid_tx.value(u, v, p),
-            TextureTag.checker => |checker_tx| checker_tx.value(u, v, p),
-            TextureTag.noise => |noise_tx| noise_tx.value(u, v, p),
-            TextureTag.image => |image_tx| image_tx.value(u, v, p),
+            .solid => |solid_tx| solid_tx.value(u, v, p),
+            .checker => |checker_tx| checker_tx.value(u, v, p),
+            .noise => |noise_tx| noise_tx.value(u, v, p),
+            .image => |image_tx| image_tx.value(u, v, p),
         };
     }
 };
