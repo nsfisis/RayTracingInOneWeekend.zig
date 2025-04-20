@@ -301,12 +301,12 @@ fn generateCornellBox(allocator: anytype) !Hittable {
     var box2r = try Rc(Hittable).init(allocator);
 
     box1.get_mut().* = try Hittable.makeBox(.{ .x = 0, .y = 0, .z = 0 }, .{ .x = 165, .y = 330, .z = 165 }, white.clone(), allocator);
-    box1r.get_mut().* = Hittable.rotateY(box1, deg2rad(15));
-    try hittable_objects.append(Hittable.translate(box1r, .{ .x = 265, .y = 0, .z = 295 }));
+    box1r.get_mut().* = Hittable.makeRotateY(box1, deg2rad(15));
+    try hittable_objects.append(Hittable.makeTranslate(box1r, .{ .x = 265, .y = 0, .z = 295 }));
 
     box2.get_mut().* = try Hittable.makeBox(.{ .x = 0, .y = 0, .z = 0 }, .{ .x = 165, .y = 165, .z = 165 }, white.clone(), allocator);
-    box2r.get_mut().* = Hittable.rotateY(box2, deg2rad(-18));
-    try hittable_objects.append(Hittable.translate(box2r, .{ .x = 130, .y = 0, .z = 65 }));
+    box2r.get_mut().* = Hittable.makeRotateY(box2, deg2rad(-18));
+    try hittable_objects.append(Hittable.makeTranslate(box2r, .{ .x = 130, .y = 0, .z = 65 }));
 
     return .{ .list = .{ .objects = hittable_objects } };
 }
@@ -316,7 +316,7 @@ pub fn main() !void {
     const allocator = gpa.allocator();
     defer debug.assert(gpa.deinit() == .ok);
 
-    var rng_ = std.rand.DefaultPrng.init(42);
+    var rng_ = std.Random.DefaultPrng.init(42);
     const rng = rng_.random();
 
     // Image

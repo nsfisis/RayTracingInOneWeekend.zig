@@ -54,11 +54,11 @@ pub const Hittable = union(HittableTag) {
         return .{ .box = try Box.init(p0, p1, material, allocator) };
     }
 
-    pub fn translate(obj: Rc(Self), offset: Vec3) Self {
+    pub fn makeTranslate(obj: Rc(Self), offset: Vec3) Self {
         return .{ .translate = .{ .object = obj, .offset = offset } };
     }
 
-    pub fn rotateY(obj: Rc(Self), angle: f64) Self {
+    pub fn makeRotateY(obj: Rc(Self), angle: f64) Self {
         return .{ .rotateY = RotateY.init(obj, angle) };
     }
 
@@ -225,11 +225,11 @@ const MovingSphere = struct {
         const o0 = sphere.center(time0);
         const o1 = sphere.center(time1);
         const r = sphere.radius;
-        const box0 = .{
+        const box0: Aabb = .{
             .min = o0.sub(.{ .x = r, .y = r, .z = r }),
             .max = o0.add(.{ .x = r, .y = r, .z = r }),
         };
-        const box1 = .{
+        const box1: Aabb = .{
             .min = o1.sub(.{ .x = r, .y = r, .z = r }),
             .max = o1.add(.{ .x = r, .y = r, .z = r }),
         };

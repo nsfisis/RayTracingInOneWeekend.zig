@@ -2,7 +2,7 @@ const std = @import("std");
 
 const Vec3 = @import("vec.zig").Vec3;
 
-pub const Random = std.rand.Random;
+pub const Random = std.Random;
 
 // [min, max)
 pub fn randomInt(comptime T: type, rand: Random, min: T, max: T) T {
