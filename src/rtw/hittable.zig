@@ -23,7 +23,6 @@ const HittableTag = enum {
     sphere,
     movingSphere,
     list,
-    bvhNode,
     xyRect,
     xzRect,
     yzRect,
@@ -38,7 +37,6 @@ pub const Hittable = union(HittableTag) {
     sphere: Sphere,
     movingSphere: MovingSphere,
     list: HittableList,
-    bvhNode: BvhNode,
     xyRect: XyRect,
     xzRect: XzRect,
     yzRect: YzRect,
@@ -63,7 +61,6 @@ pub const Hittable = union(HittableTag) {
             HittableTag.sphere => |slf| slf.hit(r, t_min, t_max, record),
             HittableTag.movingSphere => |slf| slf.hit(r, t_min, t_max, record),
             HittableTag.list => |slf| slf.hit(r, t_min, t_max, record),
-            HittableTag.bvhNode => |slf| slf.hit(r, t_min, t_max, record),
             HittableTag.xyRect => |slf| slf.hit(r, t_min, t_max, record),
             HittableTag.xzRect => |slf| slf.hit(r, t_min, t_max, record),
             HittableTag.yzRect => |slf| slf.hit(r, t_min, t_max, record),
@@ -78,7 +75,6 @@ pub const Hittable = union(HittableTag) {
             HittableTag.sphere => |slf| slf.boudingBox(time0, time1, output_box),
             HittableTag.movingSphere => |slf| slf.boudingBox(time0, time1, output_box),
             HittableTag.list => |slf| slf.boudingBox(time0, time1, output_box),
-            HittableTag.bvhNode => |slf| slf.boudingBox(time0, time1, output_box),
             HittableTag.xyRect => |slf| slf.boudingBox(time0, time1, output_box),
             HittableTag.xzRect => |slf| slf.boudingBox(time0, time1, output_box),
             HittableTag.yzRect => |slf| slf.boudingBox(time0, time1, output_box),
@@ -93,7 +89,6 @@ pub const Hittable = union(HittableTag) {
             HittableTag.sphere => |slf| slf.deinit(),
             HittableTag.movingSphere => |slf| slf.deinit(),
             HittableTag.list => |slf| slf.deinit(),
-            HittableTag.bvhNode => |slf| slf.deinit(),
             HittableTag.xyRect => |slf| slf.deinit(),
             HittableTag.xzRect => |slf| slf.deinit(),
             HittableTag.yzRect => |slf| slf.deinit(),
@@ -281,91 +276,6 @@ const HittableList = struct {
             object.deinit();
         }
         list.objects.deinit();
-    }
-};
-
-const BvhNode = struct {
-    left: *Hittable, // TODO
-    right: *Hittable, // TODO
-    box: Aabb,
-
-    fn init(
-        objects: std.ArrayList(*Hittable),
-        start: usize,
-        end: usize,
-        time0: f64,
-        time1: f64,
-    ) BvhNode {
-        var left: *Hittable = undefined;
-        var right: *Hittable = undefined;
-
-        const objects_ = objects;
-        const axis = randomInt(u8, 0, 3);
-
-        const object_span = end - start;
-        if (object_span == 1) {
-            left = objects.items[start];
-            right = objects.items[start];
-        } else if (object_span == 2) {
-            if (BvhNode.boxCompare(axis, objects[start], objects[start + 1])) {
-                left = objects[start];
-                right = objects[start + 1];
-            } else {
-                left = objects[start + 1];
-                right = objects[start];
-            }
-        } else {
-            std.sort.sort(*Hittable, objects_, axis, BvhNode.boxCompare);
-            const mid = start + object_span / 2;
-            left.* = .{ .bvhNode = BvhNode.init(objects, start, mid, time0, time1) };
-            right.* = .{ .bvhNode = BvhNode.init(objects, mid, end, time0, time1) };
-        }
-
-        const box_left: Aabb = undefined;
-        const box_right: Aabb = undefined;
-
-        if (!left.boudingBox(time0, time1, box_left) || !right.boudingBox(time0, time1, box_right)) {
-            // ERROR
-        }
-
-        return .{
-            .left = left,
-            .right = right,
-            .box = Aabb.surroundingBox(box_left, box_right),
-        };
-    }
-
-    fn boxCompare(axis: u8, a: *const Hittable, b: *const Hittable) bool {
-        if (axis == 0) {
-            return a.x < b.x;
-        } else if (axis == 1) {
-            return a.y < b.y;
-        } else {
-            return a.z < b.z;
-        }
-    }
-
-    fn hit(node: BvhNode, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
-        if (!node.box.hit(r, t_min, t_max)) {
-            return false;
-        }
-
-        const hit_left = node.left.hit(r, t_min, t_max, record);
-        const hit_right = node.right.hit(r, t_min, if (hit_left) record.t else t_max, record);
-
-        return hit_left or hit_right;
-    }
-
-    fn boudingBox(node: BvhNode, time0: f64, time1: f64, output_box: *Aabb) bool {
-        _ = time0;
-        _ = time1;
-        output_box.* = node.box;
-        return true;
-    }
-
-    fn deinit(node: *const BvhNode) void {
-        node.left.deinit();
-        node.right.deinit();
     }
 };
 
