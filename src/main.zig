@@ -1,7 +1,4 @@
 const std = @import("std");
-const debug = std.debug;
-const math = std.math;
-const ArrayList = std.ArrayList;
 
 const zigimg = @import("zigimg");
 const Image = zigimg.Image;
@@ -49,11 +46,8 @@ fn makeSphere(center: Point3, radius: f64, material: *const Material) Hittable {
     };
 }
 
-const inf = math.inf(f64);
-const pi = math.pi;
-
 fn deg2rad(degree: f64) f64 {
-    return degree * pi / 180.0;
+    return degree * std.math.pi / 180.0;
 }
 
 const Camera = struct {
@@ -125,7 +119,7 @@ fn rayColor(r: Ray, background: Color, world: Hittable, rng: Random, depth: u32)
         // If we've exceeded the ray bounce limit, no more ligth is gathered.
         return rgb(0.0, 0.0, 0.0);
     }
-    if (!world.hit(r, 0.001, inf, &rec)) {
+    if (!world.hit(r, 0.001, std.math.inf(f64), &rec)) {
         // If the ray hits nothing, return the background color.
         return background;
     }
@@ -142,7 +136,7 @@ fn rayColor(r: Ray, background: Color, world: Hittable, rng: Random, depth: u32)
 
 fn generateTwoSpheres(rng: Random, allocator: anytype) !Hittable {
     _ = rng;
-    var hittable_objects = ArrayList(Hittable).init(allocator);
+    var hittable_objects = std.ArrayList(Hittable).init(allocator);
 
     const checker = try Texture.makeChecker(allocator, rgb(0.2, 0.3, 0.1), rgb(0.9, 0.9, 0.9));
     const mat1 = try allocator.create(Material);
@@ -158,7 +152,7 @@ fn generateTwoSpheres(rng: Random, allocator: anytype) !Hittable {
 }
 
 fn generateTwoPerlinSpheres(rng: Random, allocator: anytype) !Hittable {
-    var hittable_objects = ArrayList(Hittable).init(allocator);
+    var hittable_objects = std.ArrayList(Hittable).init(allocator);
 
     const perlin = try Texture.makeNoise(allocator, 4.0, rng);
     const mat1 = try allocator.create(Material);
@@ -174,7 +168,7 @@ fn generateTwoPerlinSpheres(rng: Random, allocator: anytype) !Hittable {
 }
 
 fn generateRandomScene(rng: Random, allocator: anytype) !Hittable {
-    var hittable_objects = ArrayList(Hittable).init(allocator);
+    var hittable_objects = std.ArrayList(Hittable).init(allocator);
 
     const mat_ground = try allocator.create(Material);
     const mat1 = try allocator.create(Material);
@@ -240,7 +234,7 @@ fn generateRandomScene(rng: Random, allocator: anytype) !Hittable {
 }
 
 fn generateEarthScene(allocator: anytype) !Hittable {
-    var hittable_objects = ArrayList(Hittable).init(allocator);
+    var hittable_objects = std.ArrayList(Hittable).init(allocator);
 
     const earth_texture = try Texture.makeImage(allocator, "assets/sekaichizu.png");
     const earth_surface = try allocator.create(Material);
@@ -253,7 +247,7 @@ fn generateEarthScene(allocator: anytype) !Hittable {
 }
 
 fn generateSimpleLightScene(rng: Random, allocator: anytype) !Hittable {
-    var hittable_objects = ArrayList(Hittable).init(allocator);
+    var hittable_objects = std.ArrayList(Hittable).init(allocator);
 
     const perlin = try Texture.makeNoise(allocator, 4.0, rng);
     const mat1 = try allocator.create(Material);
@@ -276,7 +270,7 @@ fn generateSimpleLightScene(rng: Random, allocator: anytype) !Hittable {
 }
 
 fn generateCornellBox(allocator: anytype) !Hittable {
-    var hittable_objects = ArrayList(Hittable).init(allocator);
+    var hittable_objects = std.ArrayList(Hittable).init(allocator);
 
     var red = try Rc(Material).init(allocator);
     var white = try Rc(Material).init(allocator);
@@ -314,7 +308,7 @@ fn generateCornellBox(allocator: anytype) !Hittable {
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
-    defer debug.assert(gpa.deinit() == .ok);
+    defer std.debug.assert(gpa.deinit() == .ok);
 
     var rng_ = std.Random.DefaultPrng.init(42);
     const rng = rng_.random();
@@ -413,9 +407,9 @@ pub fn main() !void {
             }
             const scale = 1.0 / @as(f64, @floatFromInt(samples_per_pixel));
             image.pixels.rgb24[i + (image_height - j - 1) * image_width] = .{
-                .r = @intFromFloat(256.0 * math.clamp(@sqrt(pixelColor.x * scale), 0.0, 0.999)),
-                .g = @intFromFloat(256.0 * math.clamp(@sqrt(pixelColor.y * scale), 0.0, 0.999)),
-                .b = @intFromFloat(256.0 * math.clamp(@sqrt(pixelColor.z * scale), 0.0, 0.999)),
+                .r = @intFromFloat(256.0 * std.math.clamp(@sqrt(pixelColor.x * scale), 0.0, 0.999)),
+                .g = @intFromFloat(256.0 * std.math.clamp(@sqrt(pixelColor.y * scale), 0.0, 0.999)),
+                .b = @intFromFloat(256.0 * std.math.clamp(@sqrt(pixelColor.z * scale), 0.0, 0.999)),
             };
         }
     }

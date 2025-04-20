@@ -1,5 +1,4 @@
 const std = @import("std");
-const ArrayList = std.ArrayList;
 
 const rand = @import("rand.zig");
 const Random = rand.Random;
@@ -11,17 +10,17 @@ const Vec3 = @import("vec.zig").Vec3;
 pub const Perlin = struct {
     const POINT_COUNT = 256;
 
-    randomVec: ArrayList(Vec3),
-    permX: ArrayList(usize),
-    permY: ArrayList(usize),
-    permZ: ArrayList(usize),
+    randomVec: std.ArrayList(Vec3),
+    permX: std.ArrayList(usize),
+    permY: std.ArrayList(usize),
+    permZ: std.ArrayList(usize),
 
     pub fn init(allocator: std.mem.Allocator, rng: Random) !Perlin {
         var perlin = Perlin{
-            .randomVec = try ArrayList(Vec3).initCapacity(allocator, POINT_COUNT),
-            .permX = try ArrayList(usize).initCapacity(allocator, POINT_COUNT),
-            .permY = try ArrayList(usize).initCapacity(allocator, POINT_COUNT),
-            .permZ = try ArrayList(usize).initCapacity(allocator, POINT_COUNT),
+            .randomVec = try std.ArrayList(Vec3).initCapacity(allocator, POINT_COUNT),
+            .permX = try std.ArrayList(usize).initCapacity(allocator, POINT_COUNT),
+            .permY = try std.ArrayList(usize).initCapacity(allocator, POINT_COUNT),
+            .permZ = try std.ArrayList(usize).initCapacity(allocator, POINT_COUNT),
         };
 
         var i: usize = 0;

@@ -1,6 +1,4 @@
 const std = @import("std");
-const debug = std.debug;
-const math = std.math;
 
 const Ray = @import("ray.zig").Ray;
 const vec = @import("vec.zig");
@@ -66,7 +64,7 @@ pub const MetalMaterial = struct {
     fuzz: f64,
 
     fn scatter(mat: MetalMaterial, r_in: Ray, record: HitRecord, attenuation: *Color, scattered: *Ray, rng: Random) bool {
-        debug.assert(mat.fuzz <= 1.0);
+        std.debug.assert(mat.fuzz <= 1.0);
         const reflected = reflect(r_in.dir.normalized(), record.normal);
         scattered.* = .{ .origin = record.p, .dir = reflected.add(randomPointInUnitSphere(rng).mul(mat.fuzz)), .time = r_in.time };
         attenuation.* = mat.albedo;
@@ -96,7 +94,7 @@ pub const DielectricMaterial = struct {
     fn reflectance(cos: f64, refraction_idx: f64) f64 {
         const r0 = (1.0 - refraction_idx) / (1.0 + refraction_idx);
         const r1 = r0 * r0;
-        return r1 + (1.0 - r1) * math.pow(f64, 1.0 - cos, 5.0);
+        return r1 + (1.0 - r1) * std.math.pow(f64, 1.0 - cos, 5.0);
     }
 };
 

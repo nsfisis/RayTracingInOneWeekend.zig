@@ -1,8 +1,4 @@
 const std = @import("std");
-const debug = std.debug;
-const math = std.math;
-const pi = math.pi;
-const ArrayList = std.ArrayList;
 
 const Rc = @import("../rc.zig").Rc;
 
@@ -164,10 +160,10 @@ const Sphere = struct {
     }
 
     fn getSphereUv(p: Point3, u: *f64, v: *f64) void {
-        const phi = math.atan2(-p.z, p.x) + pi;
-        const theta = math.acos(-p.y);
-        u.* = phi / (2.0 * pi);
-        v.* = theta / pi;
+        const phi = std.math.atan2(-p.z, p.x) + std.math.pi;
+        const theta = std.math.acos(-p.y);
+        u.* = phi / (2.0 * std.math.pi);
+        v.* = theta / std.math.pi;
     }
 
     fn deinit(sphere: *const Sphere) void {
@@ -247,7 +243,7 @@ const MovingSphere = struct {
 };
 
 const HittableList = struct {
-    objects: ArrayList(Hittable),
+    objects: std.ArrayList(Hittable),
 
     fn hit(list: HittableList, r: Ray, t_min: f64, t_max: f64, record: *HitRecord) bool {
         var hit_anything = false;
@@ -294,7 +290,7 @@ const BvhNode = struct {
     box: Aabb,
 
     fn init(
-        objects: ArrayList(*Hittable),
+        objects: std.ArrayList(*Hittable),
         start: usize,
         end: usize,
         time0: f64,
@@ -538,7 +534,7 @@ const Box = struct {
     sides: HittableList,
 
     pub fn init(p0: Point3, p1: Point3, material: Rc(Material), allocator: anytype) !Box {
-        var sides = ArrayList(Hittable).init(allocator);
+        var sides = std.ArrayList(Hittable).init(allocator);
 
         try sides.append(.{ .xyRect = .{ .x0 = p0.x, .x1 = p1.x, .y0 = p0.y, .y1 = p1.y, .k = p1.z, .material = material } });
         try sides.append(.{ .xyRect = .{ .x0 = p0.x, .x1 = p1.x, .y0 = p0.y, .y1 = p1.y, .k = p0.z, .material = material.clone() } });
@@ -617,13 +613,13 @@ const RotateY = struct {
     bbox: Aabb,
 
     pub fn init(object: Rc(Hittable), t: f64) Self {
-        const sin_t = math.sin(t);
-        const cos_t = math.cos(t);
+        const sin_t = std.math.sin(t);
+        const cos_t = std.math.cos(t);
         var bbox: Aabb = undefined;
         _ = object.get().boudingBox(0, 0, &bbox);
 
-        var min: Point3 = .{ .x = math.inf(f64), .y = math.inf(f64), .z = math.inf(f64) };
-        var max: Point3 = .{ .x = -math.inf(f64), .y = -math.inf(f64), .z = -math.inf(f64) };
+        var min: Point3 = .{ .x = std.math.inf(f64), .y = std.math.inf(f64), .z = std.math.inf(f64) };
+        var max: Point3 = .{ .x = -std.math.inf(f64), .y = -std.math.inf(f64), .z = -std.math.inf(f64) };
 
         var i: u32 = 0;
         while (i < 2) : (i += 1) {
